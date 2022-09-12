@@ -1,0 +1,20 @@
+FROM python:3.10.1-slim-bullseye
+
+RUN apt-get update && \
+    apt-get install -y \
+      default-libmysqlclient-dev \
+      build-essential \
+      wait-for-it
+
+RUN pip install tox
+
+WORKDIR /home
+
+COPY requirements.txt /home/
+RUN pip install -r requirements.txt
+RUN rm requirements.txt
+
+COPY parviraptor/ /home/parviraptor/
+COPY *.* /home/
+
+RUN python setup.py install
