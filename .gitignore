@@ -1,0 +1,13 @@
+# Python
+__pycache__
+.pip
+
+# Vi
+*.sw[po]
+
+# Dump-tool
+catadumps/*
+dumpdiffs/*
+
+# ctags
+tags
