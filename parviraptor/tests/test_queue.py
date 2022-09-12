@@ -80,17 +80,17 @@ class QueueTestCase(TestCase):
         # Zur Nachvollziehbarkeit:
         temporary_failure_latency = 60 * (
             # die ersten 6 Fehlschläge geht es exponentiell hoch
-            2 ** 0
-            + 2 ** 1
-            + 2 ** 2
-            + 2 ** 3
-            + 2 ** 4
-            + 2 ** 5
+            2**0
+            + 2**1
+            + 2**2
+            + 2**3
+            + 2**4
+            + 2**5
             # ab jetzt aber nur noch konstant
-            + 2 ** 5
-            + 2 ** 5
-            + 2 ** 5
-            + 2 ** 5
+            + 2**5
+            + 2**5
+            + 2**5
+            + 2**5
         )
 
         self.assertEquals(
