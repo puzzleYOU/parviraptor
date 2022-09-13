@@ -1,12 +1,12 @@
 from itertools import chain
-from typing import Iterable
+from typing import Iterable, List
 
 from django.apps import AppConfig
 
 from parviraptor.models import AbstractJob
 
 
-def enumerate_job_models(relevant_apps: Iterable[AppConfig]):
+def enumerate_job_models(relevant_apps: Iterable[AppConfig]) -> List[type]:
     relevant_models = list(chain(*(app.get_models() for app in relevant_apps)))
 
     def is_abstract(model_class):
