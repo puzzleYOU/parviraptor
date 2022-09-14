@@ -3,7 +3,7 @@ from datetime import datetime
 from django.test import TestCase
 from django.utils import timezone
 
-from parviraptor.models import DummyJob
+from .models import DummyJob
 
 
 class AbstractJobTests(TestCase):

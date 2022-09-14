@@ -2,8 +2,8 @@ import signal
 
 from django.db import models
 
-from ..exceptions import InvalidJobError
-from .abstract import AbstractJob
+from parviraptor.exceptions import InvalidJobError
+from parviraptor.models.abstract import AbstractJob
 
 MAX_ERROR_COUNT = 5
 

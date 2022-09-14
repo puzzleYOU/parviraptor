@@ -2,8 +2,9 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from parviraptor.models import DummyJob
 from parviraptor.monitoring import monitor_queue_entries
+
+from .models import DummyJob
 
 
 class MonitoringTests(TestCase):
