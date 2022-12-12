@@ -78,7 +78,7 @@ class AbstractJob(models.Model):
             modification_date__lt=dt,
         ).count()
 
-    def _raise_temporary_failure(self, message: str):
+    def raise_temporary_failure(self, message: str):
         raise TemporaryJobFailure(message, self.error_count)
 
     class Meta:
