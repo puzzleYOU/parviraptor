@@ -31,7 +31,7 @@ class DummyJob(AbstractJob):
         # `process` nur auf die hier definierten Felder zugreifen müssen, und
         # den `error_count` komplett ignorieren.
         if self.a == 0 and self.error_count < MAX_ERROR_COUNT:
-            self.raise_temporary_failure("adding to 0 failed")
+            self._raise_temporary_failure("adding to 0 failed")
         elif self.b == 0:
             raise ValueError("b cannot be 0")
         elif self.result == 100:
