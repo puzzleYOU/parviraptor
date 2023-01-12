@@ -125,7 +125,7 @@ class JobWorker:
                 raise
         except Exception as e:
             logger.error(self._format_log_message(str(e)))
-            logger.debug(traceback.format_exc())
+            logger.error(traceback.format_exc())
             self._update_status(Status.FAILED)
             self._set_error_message(str(e))
             self._log_status()
