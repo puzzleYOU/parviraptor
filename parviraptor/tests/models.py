@@ -2,7 +2,7 @@ import signal
 
 from django.db import models
 
-from parviraptor.exceptions import InvalidJobError
+from parviraptor.exceptions import IgnoreJob, InvalidJobError
 from parviraptor.models.abstract import AbstractJob
 
 MAX_ERROR_COUNT = 5
@@ -36,3 +36,5 @@ class DummyJob(AbstractJob):
             raise ValueError("b cannot be 0")
         elif self.result == 100:
             raise InvalidJobError(f"Ignoring result {self.result}")
+        elif self.result == 200:
+            raise IgnoreJob(f"Ignoring result {self.result}")

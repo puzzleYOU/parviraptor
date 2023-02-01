@@ -1,3 +1,7 @@
+class IgnoreJob(Exception):
+    pass
+
+
 class InvalidJobError(Exception):
     pass
 
