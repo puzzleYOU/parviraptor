@@ -152,6 +152,14 @@ class QueueTestCase(TestCase):
         self.assertEqual("Ignoring result 200", job.error_message)
 
     @disable_logging()
+    def test_status_deferred_on_deferjob(self):
+        job = DummyJob.objects.create(a=150, b=150)  # wirft `DeferJob`
+        self.run_worker()
+        job.refresh_from_db()
+        self.assertEqual(DummyJob.Status.DEFERRED, job.status)
+        self.assertEqual("Deferring result 300", job.error_message)
+
+    @disable_logging()
     def test_job_changes_get_saved_on_success_and_failure(self):
         # Wir können das Speichern bei temporären Fehlern nicht testen, da wir
         # die Queue-Verarbeitung abbrechen müssen, bevor der Job erfolgreich

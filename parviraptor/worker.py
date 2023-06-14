@@ -6,7 +6,12 @@ from datetime import timedelta
 
 from django.db import transaction
 
-from .exceptions import IgnoreJob, InvalidJobError, TemporaryJobFailure
+from .exceptions import (
+    DeferJob,
+    IgnoreJob,
+    InvalidJobError,
+    TemporaryJobFailure,
+)
 from .models.abstract import AbstractJob
 
 logger = logging.getLogger(__name__)
@@ -103,6 +108,10 @@ class JobWorker:
             self.job.process()
             self._update_status(Status.PROCESSED)
             self._log_status()
+        except DeferJob as e:
+            self._info(f"Deferring job: {e}")
+            self._update_status(Status.DEFERRED)
+            self._set_error_message(str(e))
         except IgnoreJob as e:
             self._info(f"Ignoring job: {e}")
             self._update_status(Status.IGNORED)
@@ -149,6 +158,7 @@ class JobWorker:
             .exclude(status=Status.PROCESSED)
             .exclude(status=Status.SQUASHED)
             .exclude(status=Status.IGNORED)
+            .exclude(status=Status.DEFERRED)
             .count()
             > 0
         ):

@@ -1,3 +1,7 @@
+class DeferJob(Exception):
+    pass
+
+
 class IgnoreJob(Exception):
     pass
 

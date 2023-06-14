@@ -14,6 +14,7 @@ class AbstractJob(models.Model):
         SQUASHED = "SQUASHED"
         FAILED = "FAILED"
         IGNORED = "IGNORED"
+        DEFERRED = "DEFERRED"
 
     creation_date = models.DateTimeField(
         auto_now_add=True,

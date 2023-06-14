@@ -2,7 +2,7 @@ import signal
 
 from django.db import models
 
-from parviraptor.exceptions import IgnoreJob, InvalidJobError
+from parviraptor.exceptions import DeferJob, IgnoreJob, InvalidJobError
 from parviraptor.models.abstract import AbstractJob
 
 MAX_ERROR_COUNT = 5
@@ -38,3 +38,5 @@ class DummyJob(AbstractJob):
             raise InvalidJobError(f"Ignoring result {self.result}")
         elif self.result == 200:
             raise IgnoreJob(f"Ignoring result {self.result}")
+        elif self.result == 300:
+            raise DeferJob(f"Deferring result {self.result}")
