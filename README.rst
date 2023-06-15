@@ -49,8 +49,7 @@ Tests
 -----
 
 `devtools/run-tests` ist dafür zuständig, die Testumgebung aufzusetzen,
-führt die Unittests aus und prüft die Coding Conventions (`flake8`,
-`isort`, `black`).
+führt die Unittests aus und prüft die Coding Conventions (`flake8`, `isort`).
 Um die Unittests auszuführen, bedarf es lediglich einer Umgebung, in der
 `docker` und `docker-compose` installiert sind.
 

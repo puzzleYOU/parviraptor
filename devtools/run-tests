@@ -3,9 +3,6 @@
 docker build . -f Dockerfile.tests -t parviraptor-unittests
 docker_compose="docker-compose -f $(dirname $0)/run-tests.compose.yaml"
 
-$docker_compose up -d mysql
-$docker_compose run test wait-for-it mysql:3306 -t 60
-
 $docker_compose run test tox
 exit_status=$?
 $docker_compose down -v

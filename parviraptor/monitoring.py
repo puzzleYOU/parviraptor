@@ -14,7 +14,6 @@ class QueueMonitoringResult:
 def monitor_queue_entries(
     job_classes: Iterable[type],
 ) -> List[QueueMonitoringResult]:
-
     """
     Nimmt eine Sammlung von Job-Klassen entgegen und liefert eine Liste von
     `QueueMonitoringResult`s zurück.

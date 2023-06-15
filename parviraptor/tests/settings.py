@@ -1,11 +1,8 @@
 HELPER_SETTINGS = {
     "DATABASES": {
         "default": {
-            "ENGINE": "django.db.backends.mysql",
-            "HOST": "mysql",
-            "NAME": "parviraptor",
-            "PASSWORD": "dev",
-            "USER": "parviraptor",
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
         },
     },
 }
