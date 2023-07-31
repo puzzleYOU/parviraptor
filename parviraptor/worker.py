@@ -125,7 +125,7 @@ class JobWorker:
                 self._error(msg)
                 self._update_status(Status.FAILED)
                 self._set_error_message(msg)
-                raise ValueError(msg)
+                self._log_status()
             else:
                 self._update_status(Status.NEW)
                 # Wir müssen den Fehler weiter werfen, da die Queue-Verarbeitung
