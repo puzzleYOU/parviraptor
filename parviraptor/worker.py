@@ -13,7 +13,7 @@ from .models.abstract import AbstractJob
 logger = logging.getLogger(__name__)
 Status = AbstractJob.Status
 
-DEFAULT_TEMPORARY_FAILURE_THRESHOLD = 16
+DEFAULT_TEMPORARY_FAILURE_THRESHOLD = 19
 
 
 class QueueWorker:
