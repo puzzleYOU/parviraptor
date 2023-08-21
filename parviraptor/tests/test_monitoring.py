@@ -23,6 +23,7 @@ class MonitoringTests(TestCase):
         self.assertEqual("DummyJob", result[0].queue_name)
         self.assertEqual(1, result[0].failed_jobs_count)
         self.assertEqual(0, result[0].long_processing_jobs_count)
+        self.assertEqual(0, result[0].long_unprocessed_jobs_count)
 
     def test_complains_about_long_processing_jobs(self):
         with patch(
@@ -35,3 +36,17 @@ class MonitoringTests(TestCase):
         self.assertEqual("DummyJob", result[0].queue_name)
         self.assertEqual(0, result[0].failed_jobs_count)
         self.assertEqual(1, result[0].long_processing_jobs_count)
+        self.assertEqual(0, result[0].long_unprocessed_jobs_count)
+
+    def test_complains_about_long_unprocessed_jobs(self):
+        with patch(
+            "parviraptor.models.AbstractJob.count_long_unprocessed_jobs",
+            lambda: 1,
+        ):
+            result = monitor_queue_entries([DummyJob])
+        self.assertEqual(1, len(result))
+
+        self.assertEqual("DummyJob", result[0].queue_name)
+        self.assertEqual(0, result[0].failed_jobs_count)
+        self.assertEqual(0, result[0].long_processing_jobs_count)
+        self.assertEqual(1, result[0].long_unprocessed_jobs_count)

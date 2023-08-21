@@ -7,7 +7,7 @@ from datetime import timedelta
 from django.db import transaction
 
 from .exceptions import (DeferJob, IgnoreJob, InvalidJobError,
-                         TemporaryJobFailure)
+                         TemporaryJobFailure, UnprocessableJob)
 from .models.abstract import AbstractJob
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class QueueWorker:
             try:
                 job_worker = self._get_next_job_and_update_status()
                 job_worker.process()
-            except self.Job.DoesNotExist:
+            except (self.Job.DoesNotExist, UnprocessableJob):
                 self._sleep(self.pause_if_queue_empty)
             except TemporaryJobFailure as e:
                 # Prüfung auf `error_count` befindet sich im `JobWorker`,
@@ -57,6 +57,8 @@ class QueueWorker:
         )
         if job is None:
             raise self.Job.DoesNotExist()
+        elif not job.is_processable():
+            raise UnprocessableJob()
         else:
             job.status = Status.PROCESSING
             job.save()

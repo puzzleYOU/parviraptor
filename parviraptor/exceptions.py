@@ -6,6 +6,10 @@ class IgnoreJob(Exception):
     pass
 
 
+class UnprocessableJob(Exception):
+    pass
+
+
 class InvalidJobError(Exception):
     pass
 

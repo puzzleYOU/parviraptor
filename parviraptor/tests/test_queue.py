@@ -66,6 +66,17 @@ class QueueTestCase(TestCase):
         self.assert_waits(5, 5)
 
     @disable_logging()
+    def test_retry_on_not_processable(self):
+        DummyJob.objects.create(a=0, b=1)
+        with patch.object(DummyJob, "is_processable", lambda self: False):
+            self.run_worker()
+        job = DummyJob.objects.get()
+        self.assertEquals(DummyJob.Status.NEW, job.status)
+        self.assertEquals(0, job.error_count)
+        self.assertIsNone(job.result)
+        self.assert_waits(10, 0)
+
+    @disable_logging()
     def test_retry_on_temporary_failure_calculates_backoff_properly(self):
         self.pause_if_queue_empty = timedelta(seconds=0)
 

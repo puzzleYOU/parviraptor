@@ -57,6 +57,9 @@ class AbstractJob(models.Model):
         """
         raise NotImplementedError()
 
+    def is_processable(self):
+        return True
+
     def get_dependencies_queryset(self):
         """Abhängigkeiten dieses Jobs.
 
@@ -77,6 +80,15 @@ class AbstractJob(models.Model):
         return cls.objects.filter(
             status=cls.Status.PROCESSING,
             modification_date__lt=dt,
+        ).count()
+
+    @classmethod
+    def count_long_unprocessed_jobs(cls) -> int:
+        dt = datetime.now(tz=timezone.utc) - timedelta(hours=16)
+
+        return cls.objects.filter(
+            status=cls.Status.NEW,
+            creation_date__lt=dt,
         ).count()
 
     def raise_temporary_failure(self, message: str):

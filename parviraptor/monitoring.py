@@ -9,6 +9,7 @@ class QueueMonitoringResult:
     queue_name: str
     failed_jobs_count: int
     long_processing_jobs_count: int
+    long_unprocessed_jobs_count: int
 
 
 def monitor_queue_entries(
@@ -23,17 +24,22 @@ def monitor_queue_entries(
     hängengeblieben ist.
 
     - Wird bspw. `[DummyJob]` übergeben und es ist kein Job auf `FAILED` oder
-      zu lange auf `PROCESSING`, wird `[]` zurückgegeben.
+      zu lange auf `PROCESSING` bzw. `NEW`, wird `[]` zurückgegeben.
 
     - Wird bspw. `[DummyJob]` übergeben und es ist 1 Job auf `FAILED` und
       keiner zu lange auf `PROCESSING`, befindet sich in der Rückgabeliste
-      ein Element mit `queue_name = "DummyJob"`, `failed_jobs_count = 1`
-      und `long_processing_jobs_count = 0`.
+      ein Element mit `queue_name = "DummyJob"`, `failed_jobs_count = 1`,
+      `long_processing_jobs_count = 0` und `long_unprocessed_jobs_count = 0`.
 
     - Wird bspw. `[DummyJob]` übergeben und es ist kein Job auf `FAILED` und
       1 Job zu lange auf `PROCESSING`, befindet sich in der Rückgabeliste
-      ein Element mit `queue_name = "DummyJob"`, `failed_jobs_count = 0`
-      und `long_processing_jobs_count = 1`.
+      ein Element mit `queue_name = "DummyJob"`, `failed_jobs_count = 0`,
+      `long_processing_jobs_count = 1` und `long_unprocessed_jobs_count = 0`.
+
+    - Wird bspw. `[DummyJob]` übergeben und es ist 1 Job älter als Xh und immer
+      noch auf `NEW`, befindet sich in der Rückgabeliste ein Element mit
+      `queue_name = "DummyJob"`, `failed_jobs_count = 0`,
+      `long_processing_jobs_count = 0` und `long_unprocessed_jobs_count = 1`.
     """
 
     mistyped_classes = list(
@@ -51,12 +57,18 @@ def monitor_queue_entries(
     for job_class in job_classes:
         failed_jobs_count = job_class.count_failed_jobs()
         long_processing_jobs_count = job_class.count_long_processing_jobs()
+        long_unprocessed_jobs_count = job_class.count_long_unprocessed_jobs()
 
-        if failed_jobs_count or long_processing_jobs_count:
+        if (
+            failed_jobs_count
+            or long_processing_jobs_count
+            or long_unprocessed_jobs_count
+        ):
             result = QueueMonitoringResult(
                 queue_name=job_class.__name__,
                 failed_jobs_count=failed_jobs_count,
                 long_processing_jobs_count=long_processing_jobs_count,
+                long_unprocessed_jobs_count=long_unprocessed_jobs_count,
             )
             results.append(result)
     return results
