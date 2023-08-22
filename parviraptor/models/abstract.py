@@ -5,6 +5,9 @@ from django.utils import timezone
 
 from parviraptor.exceptions import TemporaryJobFailure
 
+MAX_TIMEFRAME_FOR_JOB_PROCESSING_IN_MIN = 30
+MAX_TIMEFRAME_FOR_UNPROCESSED_JOBS_IN_MIN = 16 * 60
+
 
 class AbstractJob(models.Model):
     class Status(models.TextChoices):
@@ -75,7 +78,10 @@ class AbstractJob(models.Model):
 
     @classmethod
     def count_long_processing_jobs(cls) -> int:
-        dt = datetime.now(tz=timezone.utc) - timedelta(minutes=30)
+        dt = (
+            datetime.now(tz=timezone.utc)
+            - timedelta(minutes=MAX_TIMEFRAME_FOR_JOB_PROCESSING_IN_MIN)
+        )
 
         return cls.objects.filter(
             status=cls.Status.PROCESSING,
@@ -84,7 +90,10 @@ class AbstractJob(models.Model):
 
     @classmethod
     def count_long_unprocessed_jobs(cls) -> int:
-        dt = datetime.now(tz=timezone.utc) - timedelta(hours=16)
+        dt = (
+            datetime.now(tz=timezone.utc)
+            - timedelta(minutes=MAX_TIMEFRAME_FOR_UNPROCESSED_JOBS_IN_MIN)
+        )
 
         return cls.objects.filter(
             status=cls.Status.NEW,
