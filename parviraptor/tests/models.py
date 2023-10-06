@@ -1,6 +1,8 @@
 import signal
+from random import randint
+from time import sleep
 
-from django.db import models
+from django.db import models, transaction
 
 from parviraptor.exceptions import DeferJob, IgnoreJob, InvalidJobError
 from parviraptor.models.abstract import AbstractJob
@@ -18,6 +20,7 @@ class DummyJob(AbstractJob):
     )
 
     def process(self):
+        sleep_randomly()
         self.result = self.a + self.b
 
         # Normalerweise kommen die Signals von außerhalb. Zum Testen ist es
@@ -40,3 +43,47 @@ class DummyJob(AbstractJob):
             raise IgnoreJob(f"Ignoring result {self.result}")
         elif self.result == 300:
             raise DeferJob(f"Deferring result {self.result}")
+
+
+class Counter(models.Model):
+    counter_id = models.CharField(max_length=16, primary_key=True)
+    value = models.IntegerField()
+
+
+class IncrementCounterJob(AbstractJob):
+    counter_id = models.CharField(max_length=16)
+
+    def get_dependencies_queryset(self):
+        return IncrementCounterJob.objects.none()
+
+    @transaction.atomic
+    def process(self):
+        state = (
+            Counter
+            .objects
+            .select_for_update()
+            .filter(counter_id=self.counter_id)
+            .first()
+        )
+        state.value += 1
+        state.save()
+
+
+class DummyProductJob(AbstractJob):
+    shop_name = models.CharField(max_length=16)
+    product_name = models.CharField(max_length=16)
+    action = models.CharField(max_length=16)
+
+    def get_dependencies_queryset(self):
+        return (
+            super()
+            .get_dependencies_queryset()
+            .filter(shop_name=self.shop_name, product_name=self.product_name)
+        )
+
+    def process(self):
+        sleep_randomly()
+
+
+def sleep_randomly():
+    sleep(0.01 * randint(0, 5))
