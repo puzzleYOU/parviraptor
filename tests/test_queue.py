@@ -7,10 +7,10 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from parviraptor.tests.utils import disable_logging
 from parviraptor.worker import QueueWorker
 
 from .models import DummyJob
+from .utils import disable_logging
 
 
 class QueueTestCase(TestCase):
@@ -80,7 +80,7 @@ class QueueTestCase(TestCase):
     def test_retry_on_temporary_failure_calculates_backoff_properly(self):
         self.pause_if_queue_empty = timedelta(seconds=0)
 
-        with patch("parviraptor.tests.models.MAX_ERROR_COUNT", 10):
+        with patch("tests.models.MAX_ERROR_COUNT", 10):
             DummyJob.objects.create(a=0, b=1)
             self.run_worker()
 

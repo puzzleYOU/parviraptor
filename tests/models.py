@@ -59,9 +59,7 @@ class IncrementCounterJob(AbstractJob):
     @transaction.atomic
     def process(self):
         state = (
-            Counter
-            .objects
-            .select_for_update()
+            Counter.objects.select_for_update()
             .filter(counter_id=self.counter_id)
             .first()
         )

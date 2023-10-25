@@ -10,6 +10,15 @@ MAX_TIMEFRAME_FOR_UNPROCESSED_JOBS_IN_MIN = 16 * 60
 
 
 class AbstractJob(models.Model):
+    """Basisklasse für eine Job-Queue.
+
+    Apps, die parviraptor verwenden, können konkrete Job-Klassen von dieser
+    Basisklasse ableiten. Auf diesem abgeleiteten Job können für diesen Job
+    spezifische, weitere Model-Felder definiert werden.
+
+    Diese Basisklasse ist Teil der Public API.
+    """
+
     class Status(models.TextChoices):
         NEW = "NEW"
         PROCESSING = "PROCESSING"
@@ -78,9 +87,8 @@ class AbstractJob(models.Model):
 
     @classmethod
     def count_long_processing_jobs(cls) -> int:
-        dt = (
-            datetime.now(tz=timezone.utc)
-            - timedelta(minutes=MAX_TIMEFRAME_FOR_JOB_PROCESSING_IN_MIN)
+        dt = datetime.now(tz=timezone.utc) - timedelta(
+            minutes=MAX_TIMEFRAME_FOR_JOB_PROCESSING_IN_MIN
         )
 
         return cls.objects.filter(
@@ -90,9 +98,8 @@ class AbstractJob(models.Model):
 
     @classmethod
     def count_long_unprocessed_jobs(cls) -> int:
-        dt = (
-            datetime.now(tz=timezone.utc)
-            - timedelta(minutes=MAX_TIMEFRAME_FOR_UNPROCESSED_JOBS_IN_MIN)
+        dt = datetime.now(tz=timezone.utc) - timedelta(
+            minutes=MAX_TIMEFRAME_FOR_UNPROCESSED_JOBS_IN_MIN
         )
 
         return cls.objects.filter(

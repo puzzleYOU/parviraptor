@@ -5,6 +5,7 @@ from .models import Counter, DummyJob, DummyProductJob, IncrementCounterJob
 
 class ParallelityTests(QueueTestCase):
     """Schließt Nebenläufigkeitsprobleme bei parallelen Job-Queues aus."""
+
     def test_status_transition_from_new_to_processing_is_atomic(self):
         COUNTER_VALUE = 100
         jobs = [

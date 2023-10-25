@@ -29,7 +29,7 @@ class ProcessQueueTestCase(TestCase):
                 LookupError,
                 lambda: call_command(
                     "process_queue",
-                    ["parviraptor", "NoneExistingModel"],
+                    ["tests", "NoneExistingModel"],
                     stdout=out,
                 ),
             )
@@ -38,9 +38,7 @@ class ProcessQueueTestCase(TestCase):
             # existierendes Model
             out = StringIO()
             with self.assertLogs(logger="", level="DEBUG") as cm:
-                call_command(
-                    "process_queue", ["parviraptor", "DummyJob"], stdout=out
-                )
+                call_command("process_queue", ["tests", "DummyJob"], stdout=out)
             self.assertIn("QueueWorker for DummyJob", out.getvalue())
             # prüfen, dass QueueWorker.run auch wirklich aufgerufen wird
             self.assertIn(log, cm.output[0])

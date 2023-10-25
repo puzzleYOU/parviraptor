@@ -21,7 +21,7 @@ class AbstractJobTests(TestCase):
         job.save()
         self.assertEqual(1, DummyJob.count_failed_jobs())
 
-    def test_count_long_processing_jobs_(self):
+    def test_count_long_processing_jobs(self):
         self.assertEqual(0, DummyJob.count_long_processing_jobs())
 
         job = DummyJob.objects.create(a=1, b=1)

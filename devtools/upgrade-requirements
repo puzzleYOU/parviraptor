@@ -1,7 +1,0 @@
-#!/bin/sh
-
-docker run \
-  -v `pwd`:/home python:3.10.1-slim-bullseye \
-  bash -c \
-    "pip install pip-check-updates && \
-    pcu /home/requirements.txt -u"

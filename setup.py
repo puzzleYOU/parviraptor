@@ -9,7 +9,7 @@ setup(
     author="puzzleYOU GmbH",
     packages=find_packages("."),
     install_requires=[
-        "Django",
+        "Django<5",
     ],
     zip_safe=True,
 )

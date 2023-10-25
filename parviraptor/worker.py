@@ -6,8 +6,13 @@ from datetime import timedelta
 
 from django.db import transaction
 
-from .exceptions import (DeferJob, IgnoreJob, InvalidJobError,
-                         TemporaryJobFailure, UnprocessableJob)
+from .exceptions import (
+    DeferJob,
+    IgnoreJob,
+    InvalidJobError,
+    TemporaryJobFailure,
+    UnprocessableJob,
+)
 from .models.abstract import AbstractJob
 
 logger = logging.getLogger(__name__)

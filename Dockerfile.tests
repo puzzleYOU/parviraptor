@@ -4,17 +4,14 @@ RUN apt-get update && \
     apt-get install -y \
       default-libmysqlclient-dev \
       build-essential \
-      wait-for-it
+      pkg-config
 
 RUN pip install tox
 
 WORKDIR /home
 
-COPY requirements.txt /home/
-RUN pip install -r requirements.txt
-RUN rm requirements.txt
-
 COPY parviraptor/ /home/parviraptor/
+COPY tests/ /home/tests/
 COPY *.* /home/
 
 RUN python setup.py install

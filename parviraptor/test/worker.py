@@ -15,6 +15,7 @@ class InfinityLoopFreeQueueWorker(QueueWorker):
     in diesen `sleep()`-Zustand übergegangen würde (= keine Jobs mehr offen
     sind). Damit lässt sich der Worker leichter in Unittests testen.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._should_stop = False
