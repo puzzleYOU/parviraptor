@@ -2,6 +2,7 @@ import os
 
 HELPER_SETTINGS = {
     "INSTALLED_APPS": ["parviraptor", "tests"],
+    "ROOT_URLCONF": "parviraptor.urls",
     "DATABASES": {
         "default": {
             "ENGINE": "django.db.backends.mysql",
