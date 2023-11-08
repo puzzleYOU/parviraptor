@@ -1,13 +1,19 @@
 from itertools import chain
-from typing import Iterable, List
+from typing import List
 
-from django.apps import AppConfig
-
-from parviraptor.models import AbstractJob
+from django.apps import apps
 
 
-def enumerate_job_models(relevant_apps: Iterable[AppConfig]) -> List[type]:
-    relevant_models = list(chain(*(app.get_models() for app in relevant_apps)))
+def enumerate_job_models() -> List[type]:
+    """
+    Liefert alle nicht-abstrakten Job-Models innerhalb der aktuellen
+    Django-Umgebung.
+    """
+    # lokaler Import nötig um zirkuläre Imports zu unterbinden
+    from parviraptor.models.abstract import AbstractJob
+
+    all_apps = apps.get_app_configs()
+    relevant_models = list(chain(*(app.get_models() for app in all_apps)))
 
     def is_abstract(model_class):
         if not hasattr(model_class, "Meta"):
