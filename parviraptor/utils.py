@@ -1,4 +1,4 @@
-from itertools import chain
+from itertools import chain, islice
 from typing import List
 
 from django.apps import apps
@@ -31,3 +31,18 @@ def enumerate_job_models() -> List[type]:
     )
 
     return job_models
+
+
+def iter_chunks(size, iterable):
+    """Generator, der `iterable` in Tuple der Länge `size` aufteilt. Das letzte
+    Element kann kürzer sein.
+
+    Beispiel:
+    >>> list(iter_chunks(3, range(14)))
+    [(0, 1, 2), (3, 4, 5), (6, 7, 8), (9, 10, 11), (12, 13)]
+
+    Quelle: https://stackoverflow.com/a/22045226
+
+    """
+    it = iter(iterable)
+    return iter(lambda: tuple(islice(it, size)), ())
