@@ -5,12 +5,12 @@ from time import sleep
 from django.db import models, transaction
 
 from parviraptor.exceptions import DeferJob, IgnoreJob, InvalidJobError
-from parviraptor.models.abstract import AbstractJob
+from parviraptor.models import AbstractJobFactory
 
 MAX_ERROR_COUNT = 5
 
 
-class DummyJob(AbstractJob):
+class DummyJob(AbstractJobFactory.make_base_class([])):
     """Beispiel-Job zu Demonstrations- und Testzwecken."""
 
     a = models.IntegerField()
@@ -50,11 +50,8 @@ class Counter(models.Model):
     value = models.IntegerField()
 
 
-class IncrementCounterJob(AbstractJob):
+class IncrementCounterJob(AbstractJobFactory.make_base_class(None)):
     counter_id = models.CharField(max_length=16)
-
-    def get_dependencies_queryset(self):
-        return IncrementCounterJob.objects.none()
 
     @transaction.atomic
     def process(self):
@@ -67,21 +64,16 @@ class IncrementCounterJob(AbstractJob):
         state.save()
 
 
-class DummyProductJob(AbstractJob):
-    shop_name = models.CharField(max_length=16)
-    product_name = models.CharField(max_length=16)
+class DummyProductJob(
+    AbstractJobFactory.make_base_class(["shop_name", "product_name"])
+):
+    shop_name = models.CharField(max_length=16, db_index=True)
+    product_name = models.CharField(max_length=16, db_index=True)
     action = models.CharField(max_length=16)
-
-    def get_dependencies_queryset(self):
-        return (
-            super()
-            .get_dependencies_queryset()
-            .filter(shop_name=self.shop_name, product_name=self.product_name)
-        )
 
     def process(self):
         sleep_randomly()
 
 
 def sleep_randomly():
-    sleep(0.01 * randint(0, 5))
+    sleep(0.001 * randint(0, 10))

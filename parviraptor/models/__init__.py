@@ -1,3 +1,3 @@
-# flake8: noqa
+from .abstract import AbstractJobFactory
 
-from .abstract import AbstractJob
+__all__ = ["AbstractJobFactory"]

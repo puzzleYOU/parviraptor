@@ -1,4 +1,4 @@
-from parviraptor.test import QueueTestCase
+from parviraptor.test import QueueTestCase, get_ordered_ids
 
 from .models import Counter, DummyJob, DummyProductJob, IncrementCounterJob
 
@@ -7,7 +7,7 @@ class ParallelityTests(QueueTestCase):
     """Schließt Nebenläufigkeitsprobleme bei parallelen Job-Queues aus."""
 
     def test_status_transition_from_new_to_processing_is_atomic(self):
-        COUNTER_VALUE = 100
+        COUNTER_VALUE = 500
         jobs = [
             IncrementCounterJob(counter_id="foo")
             for _ in range(0, COUNTER_VALUE)
@@ -46,7 +46,7 @@ class ParallelityTests(QueueTestCase):
             )
             for shop_name in shops
             for product_name in products
-            for action in ["A", "B", "C", "D", "E", "F", "G", "H"]
+            for action in range(1, 11)
         ]
         self.process_queue(DummyProductJob, jobs, 8)
 
@@ -60,7 +60,3 @@ class ParallelityTests(QueueTestCase):
                     jobs, "modification_date"
                 )
                 self.assertEqual(ordered_ids, ids_in_order_of_processing)
-
-
-def get_ordered_ids(qs, field):
-    return [job.pk for job in qs.order_by(field)]

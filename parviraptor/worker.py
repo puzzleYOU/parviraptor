@@ -4,8 +4,6 @@ import threading  # nicht `from threading import Event` wg. `patch` im Test
 import traceback
 from datetime import timedelta
 
-from django.db import transaction
-
 from .exceptions import (
     DeferJob,
     IgnoreJob,
@@ -13,12 +11,47 @@ from .exceptions import (
     TemporaryJobFailure,
     UnprocessableJob,
 )
-from .models.abstract import AbstractJob
+from .models.abstract import JobStatus
 
 logger = logging.getLogger(__name__)
-Status = AbstractJob.Status
 
 DEFAULT_TEMPORARY_FAILURE_THRESHOLD = 19
+
+
+class QueueWorkerLogger:
+    def __init__(self):
+        self._counter = 0
+        self._is_idle = False
+        self._is_processable = True
+
+    def info(self, *args, **kwargs):
+        logger.info(*args, **kwargs)
+
+    def debug(self, *args, **kwargs):
+        logger.debug(*args, **kwargs)
+
+    def mutate_to_processing_state(self):
+        self._is_idle = False
+        self._is_processable = True
+        if self._counter == 0:
+            self.info("processing jobs...")
+        self._counter += 1
+
+    def mutate_to_idle_state(self):
+        if self._counter > 0 or not self._is_idle:
+            self.info(f"processed {self._counter} jobs. awaiting new jobs.")
+        self._is_idle = True
+        self._counter = 0
+
+    def mutate_to_unprocessable_state(self):
+        if self._counter > 0 or self._is_processable:
+            self.info(f"processed {self._counter} jobs so far.")
+            self.info(
+                "queue turned unprocessable right now. "
+                "waiting until queue is processable again."
+            )
+        self._is_processable = False
+        self._counter = 0
 
 
 class QueueWorker:
@@ -43,8 +76,13 @@ class QueueWorker:
         while not self._caught_exit_signal.is_set():
             try:
                 job_worker = self._get_next_job_and_update_status()
+                self.logger.mutate_to_processing_state()
                 job_worker.process()
-            except (self.Job.DoesNotExist, UnprocessableJob):
+            except self.Job.DoesNotExist:
+                self.logger.mutate_to_idle_state()
+                self._sleep(self.pause_if_queue_empty)
+            except UnprocessableJob:
+                self.logger.mutate_to_unprocessable_state()
                 self._sleep(self.pause_if_queue_empty)
             except TemporaryJobFailure as e:
                 # Prüfung auf `error_count` befindet sich im `JobWorker`,
@@ -52,21 +90,15 @@ class QueueWorker:
                 latency = 2 ** min(e.error_count, 5)
                 self._sleep(timedelta(minutes=latency))
 
-    @transaction.atomic
     def _get_next_job_and_update_status(self):
-        job = (
-            self.Job.objects.select_for_update()
-            .filter(status=Status.NEW)
-            .order_by("id")
-            .first()
-        )
+        job = self.Job.fetch_next_job()
         if job is None:
             raise self.Job.DoesNotExist()
         elif not job.is_processable():
+            job.status = JobStatus.NEW
+            job.save()
             raise UnprocessableJob()
         else:
-            job.status = Status.PROCESSING
-            job.save()
             return JobWorker(
                 job,
                 temporary_failure_threshold=self.temporary_failure_threshold,
@@ -81,6 +113,7 @@ class QueueWorker:
         self.Job = Job
         self.pause_if_queue_empty = pause_if_queue_empty
         self.temporary_failure_threshold = temporary_failure_threshold
+        self.logger = QueueWorkerLogger()
         self._setup_signal_handling()
 
     def _setup_signal_handling(self):
@@ -89,11 +122,11 @@ class QueueWorker:
             signal.signal(sig, self._exit_gracefully)
 
     def _exit_gracefully(self, signum, frame):
-        logger.info(f"Exit signal caught. ({signal.Signals(signum).name})")
+        self.logger.info(f"Exit signal caught. ({signal.Signals(signum).name})")
         self._caught_exit_signal.set()
 
     def _sleep(self, duration):
-        logger.debug(f"... sleeping for {duration.seconds}s")
+        self.logger.debug(f"... sleeping for {duration.seconds}s")
         self._caught_exit_signal.wait(duration.seconds)
 
 
@@ -105,36 +138,44 @@ class JobWorker:
     existieren.
     """
 
+    def __init__(
+        self,
+        job,
+        temporary_failure_threshold=DEFAULT_TEMPORARY_FAILURE_THRESHOLD,
+    ):
+        if job.status != JobStatus.PROCESSING:
+            raise ValueError(f"expected job to be PROCESSING, got {job.status}")
+        self.job = job
+        self.temporary_failure_threshold = temporary_failure_threshold
+
     def process(self):
         try:
-            self._check_dependent_jobs()
             self.job.process()
-            self._update_status(Status.PROCESSED)
-            self._log_status()
+            self.job.status = JobStatus.PROCESSED
         except DeferJob as e:
             self._info(f"Deferring job: {e}")
-            self._update_status(Status.DEFERRED)
-            self._set_error_message(str(e))
+            self.job.status = JobStatus.DEFERRED
+            self.job.error_message = str(e)
         except IgnoreJob as e:
             self._info(f"Ignoring job: {e}")
-            self._update_status(Status.IGNORED)
-            self._set_error_message(str(e))
+            self.job.status = JobStatus.IGNORED
+            self.job.error_message = str(e)
         except InvalidJobError as e:
             self._info(f"Invalid job: {e}")
-            self._update_status(Status.FAILED)
-            self._set_error_message(str(e))
+            self.job.status = JobStatus.FAILED
+            self.job.error_message = str(e)
             self._log_status()
         except TemporaryJobFailure as e:
             self._warn(f"temporary failure: {e}")
-            self._increment_error_count()
+            self.job.error_count += 1
             if self.job.error_count > self.temporary_failure_threshold:
                 msg = "error count reached threshold"
                 self._error(msg)
-                self._update_status(Status.FAILED)
-                self._set_error_message(msg)
+                self.job.status = JobStatus.FAILED
+                self.job.error_message = msg
                 self._log_status()
             else:
-                self._update_status(Status.NEW)
+                self.job.status = JobStatus.NEW
                 # Wir müssen den Fehler weiter werfen, da die Queue-Verarbeitung
                 # eine gewisse Zeit pausieren soll, bevor der nächste Versuch
                 # unternommen wird.
@@ -142,42 +183,11 @@ class JobWorker:
         except Exception as e:
             logger.error(self._format_log_message(str(e)))
             logger.error(traceback.format_exc())
-            self._update_status(Status.FAILED)
-            self._set_error_message(str(e))
+            self.job.status = JobStatus.FAILED
+            self.job.error_message = str(e)
             self._log_status()
-
-    def __init__(
-        self,
-        job,
-        temporary_failure_threshold=DEFAULT_TEMPORARY_FAILURE_THRESHOLD,
-    ):
-        assert job.status == Status.PROCESSING
-        self.job = job
-        self.temporary_failure_threshold = temporary_failure_threshold
-
-    def _check_dependent_jobs(self):
-        if (
-            self.job.get_dependencies_queryset()
-            .exclude(status=Status.PROCESSED)
-            .exclude(status=Status.SQUASHED)
-            .exclude(status=Status.IGNORED)
-            .exclude(status=Status.DEFERRED)
-            .count()
-            > 0
-        ):
-            raise ValueError("not all dependent jobs were processed/squashed")
-
-    def _update_status(self, new_status):
-        self.job.status = new_status
-        self.job.save()
-
-    def _set_error_message(self, msg):
-        self.job.error_message = msg
-        self.job.save()
-
-    def _increment_error_count(self):
-        self.job.error_count += 1
-        self.job.save()
+        finally:
+            self.job.save()
 
     def _log_status(self):
         self._info(f"status={self.job.status}")

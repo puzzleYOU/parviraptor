@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Iterable, List
 
-from parviraptor.models import AbstractJob
+from parviraptor.models.abstract import AbstractJob
 
 
 @dataclass(frozen=True)

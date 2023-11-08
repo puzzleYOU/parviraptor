@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from parviraptor.worker import QueueWorker
+from parviraptor.worker import QueueWorker, QueueWorkerLogger
 
 from .models import DummyJob
 from .utils import disable_logging
@@ -48,9 +48,14 @@ class QueueTestCase(TestCase):
     def test_successful_processing(self):
         job_a = DummyJob.objects.create(a=1, b=2)
         job_b = DummyJob.objects.create(a=3, b=7)
+
         self.run_worker()
+        modification_date_before = job_a.modification_date  # ein Job reicht
         job_a.refresh_from_db()
         job_b.refresh_from_db()
+        modification_date_after = job_a.modification_date
+        self.assertGreater(modification_date_after, modification_date_before)
+
         self.assertEquals(job_a.status, DummyJob.Status.PROCESSED)
         self.assertEquals(job_a.result, 3)
         self.assertEquals(job_b.status, DummyJob.Status.PROCESSED)
@@ -111,35 +116,6 @@ class QueueTestCase(TestCase):
         )
 
     @disable_logging()
-    def test_fail_for_dependency_with_status_processing(self):
-        DummyJob.objects.create(a=1, b=2, status=DummyJob.Status.PROCESSING)
-        job = DummyJob.objects.create(a=2, b=2, status=DummyJob.Status.NEW)
-        self.run_worker()
-        self.assert_waits(10, 0)
-        job.refresh_from_db()
-        self.assertEqual(job.status, DummyJob.Status.FAILED)
-
-    @disable_logging()
-    def test_fail_for_dependency_with_status_failed(self):
-        DummyJob.objects.create(a=1, b=2, status=DummyJob.Status.FAILED)
-        job = DummyJob.objects.create(a=2, b=2, status=DummyJob.Status.NEW)
-        self.run_worker()
-        self.assert_waits(10, 0)
-        job.refresh_from_db()
-        self.assertEqual(job.status, DummyJob.Status.FAILED)
-
-    @disable_logging()
-    def test_process_with_unrelated_failed_job(self):
-        with self.disjunct_queues():
-            DummyJob.objects.create(a=1, b=1, status=DummyJob.Status.FAILED)
-            job_2 = DummyJob.objects.create(
-                a=2, b=1, status=DummyJob.Status.NEW
-            )
-            self.run_worker()
-            job_2.refresh_from_db()
-            self.assertEqual(job_2.status, DummyJob.Status.PROCESSED)
-
-    @disable_logging()
     def test_status_failed_on_exception(self):
         job = DummyJob.objects.create(a=1, b=0)  # wirft `ValueError`
         self.run_worker()
@@ -185,6 +161,27 @@ class QueueTestCase(TestCase):
             self.assertNotEquals(None, job.result)
 
     @disable_logging()
+    def test_fifo_depending_jobs_are_set_to_failed(self):
+        job_a = DummyJob.objects.create(a=1, b=2)  # keine Fehler
+        job_b = DummyJob.objects.create(a=1, b=0)  # Fehler
+        job_c = DummyJob.objects.create(a=1, b=2)  # c und d hängen von job_b ab
+        job_d = DummyJob.objects.create(a=1, b=2)  # → werden dann auch FAILED
+
+        for job in [job_a, job_b, job_c, job_d]:
+            job.refresh_from_db()
+            self.assertEquals(DummyJob.Status.NEW, job.status)
+        self.run_worker()
+        for job in [job_a, job_b, job_c, job_d]:
+            job.refresh_from_db()
+        self.assertEqual(DummyJob.Status.PROCESSED, job_a.status)
+        self.assertEqual(DummyJob.Status.FAILED, job_b.status)
+        self.assertEqual("b cannot be 0", job_b.error_message)
+        self.assertEqual(DummyJob.Status.FAILED, job_c.status)
+        self.assertEqual("dependent jobs failed", job_c.error_message)
+        self.assertEqual(DummyJob.Status.FAILED, job_d.status)
+        self.assertEqual("dependent jobs failed", job_d.error_message)
+
+    @disable_logging()
     def test_job_changes_get_saved_on_temporary_failure(self):
         self.max_wait_calls = 0
         job = DummyJob.objects.create(a=0, b=2)  # temporärer Fehler
@@ -210,6 +207,63 @@ class QueueTestCase(TestCase):
         self.assertEquals(DummyJob.Status.NEW, job_b.status)
         self.assertEquals(None, job_b.result)
 
+    def test_logging(self):
+        logger = QueueWorkerLogger()
+        with self.assertLogs() as cm:
+            # keine Jobs offen
+            logger.mutate_to_idle_state()
+            # verarbeitet 5 Jobs
+            for _ in range(0, 5):
+                logger.mutate_to_processing_state()
+            # Für längere Zeit keine Jobs mehr offen ergibt nur 1 Meldung.
+            # Dadurch dass wir explizit loggen, wenn wir wieder Jobs
+            # verarbeiten, müssen wir "es ist nichts zu tun" nicht ständig
+            # loggen in längeren Leerlaufphasen.
+            logger.mutate_to_idle_state()
+            logger.mutate_to_idle_state()
+            logger.mutate_to_idle_state()
+            logger.mutate_to_idle_state()
+            logger.mutate_to_idle_state()
+            # verarbeitet nochmal 4 Jobs
+            for _ in range(0, 4):
+                logger.mutate_to_processing_state()
+            # keine Jobs mehr offen
+            logger.mutate_to_idle_state()
+            logger.mutate_to_idle_state()
+            # darf keine Jobs mehr verarbeiten
+            logger.mutate_to_unprocessable_state()
+            logger.mutate_to_unprocessable_state()
+            logger.mutate_to_unprocessable_state()
+            logger.mutate_to_unprocessable_state()
+            # verarbeitet einen Job
+            logger.mutate_to_processing_state()
+            # darf keine Jobs mehr verarbeiten
+            logger.mutate_to_unprocessable_state()
+            logger.mutate_to_unprocessable_state()
+            logger.mutate_to_unprocessable_state()
+            logger.mutate_to_unprocessable_state()
+            # keine Jobs mehr offen
+            logger.mutate_to_idle_state()
+            logger.mutate_to_idle_state()
+        self.assertEqual(
+            [
+                "processed 0 jobs. awaiting new jobs.",
+                "processing jobs...",
+                "processed 5 jobs. awaiting new jobs.",
+                "processing jobs...",
+                "processed 4 jobs. awaiting new jobs.",
+                "processed 0 jobs so far.",
+                "queue turned unprocessable right now. "
+                + "waiting until queue is processable again.",
+                "processing jobs...",
+                "processed 1 jobs so far.",
+                "queue turned unprocessable right now. "
+                + "waiting until queue is processable again.",
+                "processed 0 jobs. awaiting new jobs.",
+            ],
+            [record.message for record in cm.records],
+        )
+
     @disable_logging()
     def test_sigterm_interrupts_sleep(self):
         with self.assert_max_runtime(timedelta(seconds=2)):
@@ -218,18 +272,6 @@ class QueueTestCase(TestCase):
                 DummyJob, pause_if_queue_empty=timedelta(seconds=3)
             )
             worker.run()
-
-    @contextmanager
-    def disjunct_queues(self):
-        def get_dependencies_queryset(obj):
-            return DummyJob.objects.filter(id__lt=obj.id, a=obj.a)
-
-        prev = DummyJob.get_dependencies_queryset
-        try:
-            DummyJob.get_dependencies_queryset = get_dependencies_queryset
-            yield
-        finally:
-            DummyJob.get_dependencies_queryset = prev
 
     @contextmanager
     def assert_max_runtime(self, max_runtime):
