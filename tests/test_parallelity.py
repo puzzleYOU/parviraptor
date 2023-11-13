@@ -1,4 +1,4 @@
-from parviraptor.test import QueueTestCase, get_ordered_ids
+from parviraptor.test import QueueTestCase
 
 from .models import Counter, DummyJob, DummyProductJob, IncrementCounterJob
 
@@ -28,8 +28,8 @@ class ParallelityTests(QueueTestCase):
         jobs = [DummyJob(a=1, b=3) for _ in range(0, 100)]
         self.process_queue(DummyJob, jobs, 8)
 
-        ordered_ids = get_ordered_ids(DummyJob.objects.all(), "pk")
-        ids_in_order_of_processing = get_ordered_ids(
+        ordered_ids = self.get_ordered_ids(DummyJob.objects.all(), "pk")
+        ids_in_order_of_processing = self.get_ordered_ids(
             DummyJob.objects.all(), "modification_date"
         )
         self.assertEqual(ordered_ids, ids_in_order_of_processing)
@@ -55,8 +55,8 @@ class ParallelityTests(QueueTestCase):
                 jobs = DummyProductJob.objects.filter(
                     shop_name=shop_name, product_name=product_name
                 )
-                ordered_ids = get_ordered_ids(jobs, "pk")
-                ids_in_order_of_processing = get_ordered_ids(
+                ordered_ids = self.get_ordered_ids(jobs, "pk")
+                ids_in_order_of_processing = self.get_ordered_ids(
                     jobs, "modification_date"
                 )
                 self.assertEqual(ordered_ids, ids_in_order_of_processing)

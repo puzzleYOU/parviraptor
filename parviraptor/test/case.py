@@ -82,3 +82,6 @@ class QueueTestCase(TransactionTestCase):
                     )
                 else:
                     self.fail(f"thread #{idx} was however not processed")
+
+    def get_ordered_ids(self, qs, field):
+        return [job.pk for job in qs.order_by(field)]

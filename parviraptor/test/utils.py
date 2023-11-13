@@ -11,7 +11,3 @@ def measure_stats():
     yield
     pr.disable()
     Stats(pr, stream=stdout).sort_stats(SortKey.CUMULATIVE).print_stats()
-
-
-def get_ordered_ids(qs, field):
-    return [job.pk for job in qs.order_by(field)]

@@ -1,6 +1,5 @@
 from ..utils import enumerate_job_models
 from .case import QueueTestCase
-from .utils import get_ordered_ids
 
 
 def make_test_case_for_all_queues(**static_fields) -> type[QueueTestCase]:
@@ -45,8 +44,8 @@ def make_test_case_for_all_queues(**static_fields) -> type[QueueTestCase]:
         def _assert_jobs_are_processed_in_proper_order(self, model_class):
             for f in model_class.get_queryset_filters_for_disjoint_queues():
                 jobs = model_class.objects.filter(**f)
-                ordered_ids = get_ordered_ids(jobs, "pk")
-                ids_in_order_of_processing = get_ordered_ids(
+                ordered_ids = self.get_ordered_ids(jobs, "pk")
+                ids_in_order_of_processing = self.get_ordered_ids(
                     jobs, "modification_date"
                 )
                 self.assertEqual(ordered_ids, ids_in_order_of_processing)
