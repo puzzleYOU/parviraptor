@@ -1,11 +1,10 @@
 import itertools
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import reduce
 from typing import Any
 
 from django.db import models
 from django.db.models import Q
-from django.utils import timezone
 
 from parviraptor.exceptions import TemporaryJobFailure
 
