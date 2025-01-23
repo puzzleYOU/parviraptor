@@ -1,4 +1,4 @@
-from .open_queue_entries import open_queue_entries
+from .open_queue_entries import OpenQueueEntriesView
 from .queue_monitoring import queue_monitoring
 
-__all__ = ["open_queue_entries", "queue_monitoring"]
+__all__ = ["OpenQueueEntriesView", "queue_monitoring"]

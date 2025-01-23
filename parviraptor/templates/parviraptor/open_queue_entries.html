@@ -16,6 +16,7 @@
         text-align: left;
       }
     </style>
+    {% block "additional_css" %}{% endblock %}
   </head>
   <body>
     <h2>Open queue-entries:</h2>
@@ -31,5 +32,7 @@
       </tr>
       {% endfor %}
     </table>
+    {% block "additional_content" %}{% endblock %}
+    {% block "additional_js" %}{% endblock %}
   </body>
 </html>
