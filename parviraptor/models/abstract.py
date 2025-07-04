@@ -264,13 +264,15 @@ class AbstractJobFactory:
     """
 
     @classmethod
-    def make_base_class(cls, dependent_fields: list[str] | None):
+    def make_base_class(
+        cls, dependent_fields: list[str] | None
+    ) -> type[AbstractJob]:
         class DerivedJob(AbstractJob):
             def __init_subclass__(cls):
                 # `cls` is a derived class
                 setattr(cls, "dependent_fields", dependent_fields)
 
-            class Meta:
+            class Meta(AbstractJob.Meta):
                 abstract = True
 
         return DerivedJob
