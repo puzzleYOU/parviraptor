@@ -4,19 +4,18 @@ from .case import QueueTestCase
 
 def make_test_case_for_all_queues(**static_fields) -> type[QueueTestCase]:
     """
-    Erzeugt einen Test-Case für alle konkreten Job-Models, die in der
-    aktuellen Django-Umgebung existieren.
+    Infers a test case for all non-abstract parviraptor job models within
+    the current Django environment.
 
-    Von dieser Klasse kann geerbt werden, um z. B. `setUp()` zu überschreiben,
-    was ratsam ist, damit man Dummy-Jobs anlegen kann, die dann verarbeitet
-    werden.
+    It covers processing jobs both sequentially and in parallel, and ensures
+    job instances exist for each concrete job class. Therefore, you should
+    derive from the inferred base class and extend `setUp()` to create job
+    instances.
 
-    Der Test deckt parallele und sequentielle Verarbeitung der Jobs ab.
-
-    Parameter:
-    - `static_fields`: Keyword-Parameter, die als statische Attribute
-      auf die Testklasse geschrieben werden. Beispiel für solche Parameter:
-      `maxDiff=None`, `fixtures=["some-fixture.json"]`.
+    Parameters:
+    - `static_fields`: keyword parameters. they are directly passed as static
+      members to the test class. One might want to pass `maxDiff=None` and
+      `fixtures=["some-fixture.json"]`, for example.
     """
     model_classes = enumerate_job_models()
 

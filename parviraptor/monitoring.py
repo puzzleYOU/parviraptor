@@ -16,30 +16,13 @@ def monitor_queue_entries(
     job_classes: Iterable[type],
 ) -> List[QueueMonitoringResult]:
     """
-    Nimmt eine Sammlung von Job-Klassen entgegen und liefert eine Liste von
-    `QueueMonitoringResult`s zurück.
+    Returns `QueueMonitoringResult` per passed job class.
 
-    Ein `QueueMonitoringResult` für die übergebene Job-Klasse taucht nur
-    dann im Rückgabewert auf, wenn ein Job fehlgeschlagen oder potentiell
-    hängengeblieben ist.
-
-    - Wird bspw. `[DummyJob]` übergeben und es ist kein Job auf `FAILED` oder
-      zu lange auf `PROCESSING` bzw. `NEW`, wird `[]` zurückgegeben.
-
-    - Wird bspw. `[DummyJob]` übergeben und es ist 1 Job auf `FAILED` und
-      keiner zu lange auf `PROCESSING`, befindet sich in der Rückgabeliste
-      ein Element mit `queue_name = "DummyJob"`, `failed_jobs_count = 1`,
-      `long_processing_jobs_count = 0` und `long_unprocessed_jobs_count = 0`.
-
-    - Wird bspw. `[DummyJob]` übergeben und es ist kein Job auf `FAILED` und
-      1 Job zu lange auf `PROCESSING`, befindet sich in der Rückgabeliste
-      ein Element mit `queue_name = "DummyJob"`, `failed_jobs_count = 0`,
-      `long_processing_jobs_count = 1` und `long_unprocessed_jobs_count = 0`.
-
-    - Wird bspw. `[DummyJob]` übergeben und es ist 1 Job älter als Xh und immer
-      noch auf `NEW`, befindet sich in der Rückgabeliste ein Element mit
-      `queue_name = "DummyJob"`, `failed_jobs_count = 0`,
-      `long_processing_jobs_count = 0` und `long_unprocessed_jobs_count = 1`.
+    A `QueueMonitoringResult` is returned per job class if at least one of the
+    following conditions is met:
+    - jobs failed (failed_jobs_count > 0)
+    - backlog is potentially too large (long_unprocessed_jobs_count > 0)
+    - jobs potentially crashed (long_processing_jobs_count > 1)
     """
 
     mistyped_classes = list(

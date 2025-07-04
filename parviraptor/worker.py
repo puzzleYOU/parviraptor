@@ -1,6 +1,6 @@
 import logging
 import signal
-import threading  # nicht `from threading import Event` wg. `patch` im Test
+import threading
 import traceback
 from datetime import timedelta
 
@@ -55,21 +55,12 @@ class QueueWorkerLogger:
 
 
 class QueueWorker:
-    """Abarbeitung einer Queue aus Job-Objekten.
+    """Processing a certain job queue.
 
-    Der Worker stellt sicher, dass die Jobs in der Reihenfolge des Anlegens
-    (FIFO) bearbeitet werden, und dass immer nur ein Job parallel in
-    Bearbeitung ist. D.h. insbesondere, dass die komplette Queue steht, sobald
-    ein Job fehlschlägt.
-
-    Jedes Kind-Model von `parviraptor.models.AbstractJob` bildet
-    eine eigene Queue, die wie folgt abgearbeitet werden kann
-    (am Beispiel von `DummyJob`):
+    Example:
 
     >>> worker = QueueWorker(DummyJob)
-    >>> worker.run()  # Endlosschleife
-
-    Für mögliche Konfigurationsparameter siehe `__init__`.
+    >>> worker.run()  # blocks infinitely
     """
 
     def run(self):
@@ -85,8 +76,8 @@ class QueueWorker:
                 self.logger.mutate_to_unprocessable_state()
                 self._sleep(self.pause_if_queue_empty)
             except TemporaryJobFailure as e:
-                # Prüfung auf `error_count` befindet sich im `JobWorker`,
-                # d.h. wir haben den Grenzwert noch nicht erreicht.
+                # this would not be reraised if `error_count` was reached.
+                # see JobWorker.
                 minutes = self._calc_latency_in_minutes(e.error_count)
                 self._sleep(timedelta(minutes=minutes))
 
@@ -138,13 +129,6 @@ class QueueWorker:
 
 
 class JobWorker:
-    """Kontext für die Bearbeitung eines Jobs.
-
-    Eine JobWorker-Instanz darf nur für einen Job mit Status PROCESSING
-    erstellt werden und es darf nur eine solche Instanz für einen Job
-    existieren.
-    """
-
     def __init__(
         self,
         job,
@@ -183,9 +167,8 @@ class JobWorker:
                 self._log_status()
             else:
                 self.job.status = JobStatus.NEW
-                # Wir müssen den Fehler weiter werfen, da die Queue-Verarbeitung
-                # eine gewisse Zeit pausieren soll, bevor der nächste Versuch
-                # unternommen wird.
+                # we intentionally reraise this failure because the retry
+                # backoff handling is done beyond the scope of this context
                 raise
         except Exception as e:
             logger.error(self._format_log_message(str(e)))

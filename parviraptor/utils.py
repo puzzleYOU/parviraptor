@@ -6,10 +6,10 @@ from django.apps import apps
 
 def enumerate_job_models() -> List[type]:
     """
-    Liefert alle nicht-abstrakten Job-Models innerhalb der aktuellen
-    Django-Umgebung.
+    Enumerates all non-abstract parviraptor job models within current
+    Django environment.
     """
-    # lokaler Import nötig um zirkuläre Imports zu unterbinden
+    # avoid circular imports
     from parviraptor.models.abstract import AbstractJob
 
     all_apps = apps.get_app_configs()
@@ -17,8 +17,8 @@ def enumerate_job_models() -> List[type]:
 
     def is_abstract(model_class):
         if not hasattr(model_class, "Meta"):
-            # Wenn keine Meta-Klasse gesetzt ist, kann auch nicht
-            # explizit `abstract = True` gesetzt sein.
+            # If there is no meta class, `abstract = True` can not have
+            # been explicitly set so the model is logically non-abstract
             return False
         return not getattr(model_class.Meta, "abstract", False)
 
@@ -34,15 +34,12 @@ def enumerate_job_models() -> List[type]:
 
 
 def iter_chunks(size, iterable):
-    """Generator, der `iterable` in Tuple der Länge `size` aufteilt. Das letzte
-    Element kann kürzer sein.
+    """Divides `iterable` into tuples of `size`. The last chunk may be shorter.
 
-    Beispiel:
     >>> list(iter_chunks(3, range(14)))
     [(0, 1, 2), (3, 4, 5), (6, 7, 8), (9, 10, 11), (12, 13)]
 
-    Quelle: https://stackoverflow.com/a/22045226
-
+    source: https://stackoverflow.com/a/22045226
     """
     it = iter(iterable)
     return iter(lambda: tuple(islice(it, size)), ())

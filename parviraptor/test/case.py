@@ -16,12 +16,13 @@ class QueueTestCase(TransactionTestCase):
         number_of_threads: int,
         create_jobs: bool = True,
     ):
-        """Verarbeitet eine Queue mit `number_of_threads` parallelen Threads.
+        """Processes a queue, optionally in parallel.
 
-        Die Funktion legt die übergebenen `jobs` an und stellt sicher, dass sie
-        am Ende alle `PROCESSED` sind.
-        Der aufrufende Test muss sich nicht darum bemühen, den Worker per z. B.
-        `SIGTERM` zu beenden, das erfolgt intern von selbst.
+        If `number_of_threads >= 1`, they are parallelized using threads.
+
+        This method creates the given job instances and ensures that in the end
+        they are successfully processed.
+        It does NOT block infinitely as the standard queue processor would do.
         """
         jobs = list(jobs)
         if create_jobs:
@@ -67,9 +68,7 @@ class QueueTestCase(TransactionTestCase):
                     self.failure_detail = f"{type(ex).__name__}: {ex}"
 
         threads = [QueueWorkerThread() for _ in range(0, number_of_threads)]
-        # start() und join() dürfen nicht in derselben Schleife ausgeführt
-        # werden, weil join() den aktuellen Thread blockiert. Man muss also
-        # erst alle Threads starten und dann erst auf alle warten.
+        # join() blocks the current thread, this is why we need separate loops
         for thread in threads:
             thread.start()
         for thread in threads:

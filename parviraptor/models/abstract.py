@@ -29,14 +29,14 @@ class BackoffStrategy(enum.Enum):
 class AbstractJob(models.Model):
     """Basisklasse zum Bilden einer Job-Queue.
 
-    Der einfachste Weg einen konkreten Job von dieser Basisklasse abzuleiten,
-    ist der, von der abstrakten Klasse abzuleiten, die `AbstractJobFactory`
-    erstellt.
+    One should not directly derive from this class but use the base
+    class inferred by `AbstractJobFactory`.
 
-    Für die abgeleitete Jobklasse gilt:
-    - Die Werte hier für die `MAX_TIMEFRAME_...`-Konstanten sind Standardwerte
-      und dürfen überschrieben werden, da kritische Grenzwerte z. B. für
-      volllaufende Queues nicht zwingend allgemeingültig sind.
+    Overridable class members:
+    - MAX_TIMEFRAME_FOR_JOB_PROCESSING_IN_MIN
+    - MAX_TIMEFRAME_FOR_JOB_UNPROCESSED_IN_MIN
+    - BACKOFF_STEP_MINUTES
+    - BACKOFF_STRATEGY
     """
 
     MAX_TIMEFRAME_FOR_JOB_PROCESSING_IN_MIN = 30
@@ -77,28 +77,29 @@ class AbstractJob(models.Model):
     )
 
     def process(self):
-        """Bearbeitet den Job.
+        """Processes a job.
 
-        Diese Methode muss in abgeleiteten konkreten Klassen implementiert
-        werden. Die Verwaltung des Jobs (Status-Setzen auf PROCESSING usw.)
-        und das Speichern des Jobs (auch im Fehlerfall) sind *nicht* Teil
-        dieser Methode, das erfolgt außerhalb.
+        Derived classes implement their concrete job logic here. This
+        implementation does not have to care about concrete state
+        transitions.
 
-        Sollte es bei der Job-Verarbeitung zu einem Fehler kommen, muss in
-        abgeleiteten `process()`-Methoden selbst ein entsprechender
-        Rollback-Mechanismus implementiert werden
-        (z. B. per `transaction.atomic`-Decorator oder Context-Manager).
+        One can raise any exception which cause a job to finalize to the
+        `FAILED` state. Raising any `TemporaryJobFailure` triggers the
+        job to be retried if it has not failed too often.
+
+        In case job processing fails you might need to implement reasonable
+        rollback mechanisms. For mutating database state, you might e.g.
+        want to use `transaction.atomic` as decorator / context manager.
         """
         raise NotImplementedError()
 
     def is_processable(self) -> bool:
-        """Gibt zurück, ob die Queue verarbeitet werden kann.
+        """Returns whether the job queue is processable.
 
-        Die Standardimplementierung sieht vor, dass die Queue verarbeitet
-        werden kann. Das kann in abgeleiteten Klassen überschrieben werden,
-        um das Verarbeiten einer Queue unter bestimmten äußeren Umständen
-        zu unterbinden. Diese Information ist für den übergeordneten Worker
-        relevant.
+        By default, it always returns True. This method may be overriden
+        in case the processability of a certain job queue depends on
+        runtime condition. If 'False' is returned, the job worker processing
+        this job class will silently await until 'True' is returned again.
         """
         return True
 
@@ -109,28 +110,25 @@ class AbstractJob(models.Model):
             raise cls.DoesNotExist()
 
         if cls.get_dependent_fields() is not None:
-            # Hängt der aktuelle Job von Vorgängern ab, die FAILED sind, können
-            # wir sofort den Job selbst und alle Nachfolger auf FAILED setzen.
+            # If current job depends on failed predecessors, we can set this
+            # job and all of its successors to FAILED as well.
             failed_predecessors = cls._fetch_failed_predecessors(job)
             cls._change_job_and_dependent_successors_to_failed_if_necessary(
                 job, failed_predecessors
             )
 
-            # Wenn Vorgänger noch nicht verarbeitet oder FAILED sind, dann
-            # versuchen wir, den nächsten Job zu verarbeiten.
+            # We try to process the next direct successor on incomplete or
+            # failed predecessors as the next one might be processable.
             if (
                 cls._incomplete_predecessors_exist(job)
                 or failed_predecessors.exists()
             ):
                 return cls.fetch_next_job(id_gt=job.id)
 
-        # Wir könnten selbst mit Transaktionen nicht verhindern, dass zwei
-        # parallele Worker versuchen, denselben Job von NEW auf PROCESSING
-        # zu setzen. Den Zustandsübergang per Table Locks zu sperren, macht
-        # allerdings seitens Django an anderen Stellen Probleme.
-        # Wenn `updated_jobs_count == 0` vorliegt, dann bedeutet das, dass
-        # ein anderer Worker den Job bereits bearbeitet. In diesem Fall
-        # machen wir einfach mit dem nächsten Job weiter.
+        # concurrency mitigation: two parallel workers might set the same job
+        # to PROCESSING at the same time. `updated_jobs_count == 0` means
+        # "another process already took care of this job". In this case we
+        # can just silently continue.
         updated_jobs_count = cls.objects.filter(
             status=JobStatus.NEW, id=job.id
         ).update(
@@ -236,13 +234,12 @@ class AbstractJob(models.Model):
         ).count()
 
     def raise_temporary_failure(self, message: str):
-        """Wirft einen temporären Fehler.
+        """Raises a temporary failure.
 
-        Temporäre Fehler sind solche Fehler, die höchstwahrscheinlich bei
-        einem erneuten Versuch nicht mehr auftreten. In `process()` sollte
-        in solchen Fällen unbedingt diese Methode aufgerufen werden, damit
-        der Job von außen neugestartet wird (solange ein gewisser Grenzwert
-        an temporären Fehlschlägen nicht erreicht wird).
+        Temporary failures are such which might not occur after one or more
+        retries. `process()` should call this method so the job can be resumed
+        by the worker in case the temporary failure threshold has not been
+        exceeded.
         """
         raise TemporaryJobFailure(message, self.error_count)
 
@@ -251,34 +248,26 @@ class AbstractJob(models.Model):
 
 
 class AbstractJobFactory:
-    """Factory für die Basisklasse einer Job-Queue.
+    """Factory for inferring job queue base classes.
 
-    `dependent_fields` ist eine Liste an Feldnamen. Gibt es mehrere Jobs mit
-    denselben Feldern, so müssen diese nach FIFO abgearbeitet werden. Das
-    ermöglicht, Teilqueues innerhalb einer Queue zu haben.
-    Ist `dependent_fields` leer, wird die Queue strikt nach FIFO abgearbeitet.
+    `dependent_fields` is a list of model field names. If there are multiple
+    jobs with the same field values, they are processed by FIFO strategy. This
+    enables for disjoint queues within one queue model.
 
-    "nach FIFO abgearbeitet" schließt ein, dass z. B. bei Fehlschlagen eines
-    Jobs der nächste erst verarbeitet wird, wenn sein Vorgänger erfolgreich
-    verarbeitet wurde.
+    - `dependent_fields = []` declares a strict FIFO queue.
+    - `dependent_fields = None` means all jobs can be processed from each
+      other independently.
 
-    Ist `dependent_fields` None, so sind alle Jobs unabhängig voneinander und
-    können in beliebiger Reihenfolge bearbeitet werden.
-
-    Apps, die parviraptor verwenden, können konkrete Job-Klassen von der
-    Basisklasse ableiten, die `make_base_class()` liefert. Auf diesem
-    abgeleiteten Job können für diesen Job spezifische, weitere Model-Felder
-    definiert werden. Ebenso können statische Felder auf dem Job überschrieben
-    werden (näheres siehe in der Dokumentation von `AbstractJob` selbst).
-
-    Die AbstractJobFactory ist Teil der Public API.
+    "FIFO strategy" also covers that successors with same `dependent_fields`
+    values are only processed if all pending predecessors have been
+    *successfully* completed.
     """
 
     @classmethod
     def make_base_class(cls, dependent_fields: list[str] | None):
         class DerivedJob(AbstractJob):
             def __init_subclass__(cls):
-                # `cls` ist ein abgeleiteter Job
+                # `cls` is a derived class
                 setattr(cls, "dependent_fields", dependent_fields)
 
             class Meta:

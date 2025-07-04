@@ -1,7 +1,4 @@
-"""Funktionalität, um Tests für Queue-Verarbeitung zu schreiben.
-
-Alle hier exportierten Symbole sind Teil der Public API.
-"""
+"""A simple test framework for parviraptor-based applications."""
 
 from .case import QueueTestCase
 from .factory import make_test_case_for_all_queues
