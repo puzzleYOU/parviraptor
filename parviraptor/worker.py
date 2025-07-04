@@ -11,7 +11,7 @@ from .exceptions import (
     TemporaryJobFailure,
     UnprocessableJob,
 )
-from .models.abstract import JobStatus
+from .models.abstract import AbstractJob, BackoffStrategy, JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +87,15 @@ class QueueWorker:
             except TemporaryJobFailure as e:
                 # Prüfung auf `error_count` befindet sich im `JobWorker`,
                 # d.h. wir haben den Grenzwert noch nicht erreicht.
-                latency = 2 ** min(e.error_count, 5)
-                self._sleep(timedelta(minutes=latency))
+                minutes = self._calc_latency_in_minutes(e.error_count)
+                self._sleep(timedelta(minutes=minutes))
+
+    def _calc_latency_in_minutes(self, error_count: int) -> int:
+        match self.Job.BACKOFF_STRATEGY:
+            case BackoffStrategy.CONSTANT:
+                return self.Job.BACKOFF_STEP_MINUTES
+            case BackoffStrategy.EXPONENTIAL:
+                return self.Job.BACKOFF_STEP_MINUTES ** min(error_count, 5)
 
     def _get_next_job_and_update_status(self):
         job = self.Job.fetch_next_job()
@@ -106,7 +113,7 @@ class QueueWorker:
 
     def __init__(
         self,
-        Job,
+        Job: type[AbstractJob],
         pause_if_queue_empty=timedelta(minutes=1),
         temporary_failure_threshold=DEFAULT_TEMPORARY_FAILURE_THRESHOLD,
     ):

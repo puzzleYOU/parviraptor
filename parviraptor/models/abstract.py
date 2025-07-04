@@ -1,3 +1,4 @@
+import enum
 import itertools
 from datetime import datetime, timedelta, timezone
 from functools import reduce
@@ -19,6 +20,12 @@ class JobStatus(models.TextChoices):
     DEFERRED = "DEFERRED"
 
 
+@enum.unique
+class BackoffStrategy(enum.Enum):
+    EXPONENTIAL = enum.auto()
+    CONSTANT = enum.auto()
+
+
 class AbstractJob(models.Model):
     """Basisklasse zum Bilden einer Job-Queue.
 
@@ -34,6 +41,9 @@ class AbstractJob(models.Model):
 
     MAX_TIMEFRAME_FOR_JOB_PROCESSING_IN_MIN = 30
     MAX_TIMEFRAME_FOR_UNPROCESSED_JOBS_IN_MIN = 16 * 60
+
+    BACKOFF_STEP_MINUTES = 2
+    BACKOFF_STRATEGY = BackoffStrategy.EXPONENTIAL
 
     @classmethod
     def get_dependent_fields(cls):
