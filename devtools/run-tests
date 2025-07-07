@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Wir können hier nicht `set -o errexit` verwenden, weil wir sonst bei
+# fehlschlagenden Testläufen sofort nach `docker-compose run` abbrechen
+# würden und dann auf Dauer viele verwaiste Container liegen bleiben.
+docker build . -f Dockerfile.tests -t parviraptor-unittests || exit 1
+docker_compose="docker-compose -f $(dirname $0)/run-tests.compose.yaml"
+
+$docker_compose run test tox $@
+exit_status=$?
+$docker_compose down --volumes --remove-orphans
+exit $exit_status

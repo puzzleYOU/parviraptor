@@ -1,0 +1,14 @@
+{% block content %}
+{% if queue_entries %}
+  {% for entry in queue_entries %}
+  <p>
+    There are {{ entry.failed_jobs_count }} failed,
+    {{ entry.long_processing_jobs_count }} long processing and
+    {{ entry.long_unprocessed_jobs_count }} long unprocessed
+    {{ entry.queue_name }}s.
+  </p>
+  {% endfor %}
+{% else %}
+<p>Alles OK</p>
+{% endif %}
+{% endblock %}
