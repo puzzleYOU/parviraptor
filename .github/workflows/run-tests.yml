@@ -1,0 +1,17 @@
+name: Run tests
+
+on: pull_request
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: direnv-nix
+        uses: JRMurr/direnv-nix-action@v4.2.0
+      - name: run tests
+        run: just test
+        shell: bash
