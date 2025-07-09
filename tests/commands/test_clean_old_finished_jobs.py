@@ -58,6 +58,17 @@ class CleanOldFinishedJobsTests(TransactionTestCase):
         self._call_command("1", "--queue=tests.DummyJob")
         self.assertEqual(4, DummyJob.objects.count())
 
+    def test_no_jobs_to_be_deleted(self):
+        DummyJob.objects.create(a=1, b=2, status="PROCESSED")
+        DummyJob.objects.create(a=1, b=2, status="FAILED")
+        DummyJob.objects.create(a=1, b=2, status="PROCESSED")
+        DummyJob.objects.create(a=1, b=2, status="PROCESSED")
+        DummyJob.objects.create(a=1, b=2, status="PROCESSED")
+
+        self.assertEqual(5, DummyJob.objects.count())
+        self._call_command("1", "--queue=tests.DummyJob")
+        self.assertEqual(5, DummyJob.objects.count())
+
     def test_can_delete_all_old_finished_jobs(self):
         old_date = datetime.now(tz=timezone.utc) - timedelta(days=23)
 
