@@ -8,9 +8,7 @@ from .models import Counter, DummyJob, DummyProductJob, IncrementCounterJob
 class FactoryTestCase(make_test_case_for_all_queues()):
     def setUp(self):
         super().setUp()
-        DummyJob.objects.bulk_create(
-            [DummyJob(a=1, b=3) for _ in range(0, 100)]
-        )
+        DummyJob.objects.bulk_create([DummyJob(a=1, b=3) for _ in range(100)])
         DummyProductJob.objects.bulk_create(
             [
                 DummyProductJob(
@@ -25,7 +23,7 @@ class FactoryTestCase(make_test_case_for_all_queues()):
         )
         Counter.objects.create(counter_id="foo", value=0)
         IncrementCounterJob.objects.bulk_create(
-            [IncrementCounterJob(counter_id="foo") for _ in range(0, 100)]
+            [IncrementCounterJob(counter_id="foo") for _ in range(100)]
         )
 
 
