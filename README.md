@@ -29,7 +29,7 @@ the command `just lint`.
 ## Development
 
 For developing `parviraptor` it is necessary to have `nix` 2.x and `direnv`
-2.x installed as system-wide dependency. `nix` must have enabled the features
+2.x installed as system-wide dependencies. `nix` must have enabled the features
 "nix command" and "flake support".
 
 The development shell can be invoked by e.g. `direnv exec . zsh`. Executing
@@ -67,11 +67,11 @@ Just add `'parviraptor'` to your `INSTALLED_APPS` Django setting as usual.
     they are counted per queue and written down in english plain text.
 
   - `/open-queue-entries` serves a human-readable, styled table (in English)
-    wich open or pending job counts.
+    with open or pending job counts.
 
 - The management command `process_queue` starts a worker for processing a
   certain job queue. It internally manages each necessary job transition
-  (e.g. `PROCESSING` -> `FAILED`). `parviraptor` supports so- called temporary
+  (e.g. `PROCESSING` -> `FAILED`). `parviraptor` supports so-called temporary
   job failures, i.e. if a "temporary exception" is raised, `parviraptor`
   resumes the job respecting the per-job configurable backoff strategy.
   - generic call: `./manage.py process_queue <app_label> <model>`.
