@@ -1,0 +1,38 @@
+<html>
+  <head>
+    <style>
+      table {
+        border-collapse: collapse;
+      }
+
+      table tr:nth-child(even) {
+        background-color: lightgray;
+      }
+
+      table td,
+      table th {
+        border: 1px solid gray;
+        padding: 8px;
+        text-align: left;
+      }
+    </style>
+    {% block "additional_css" %}{% endblock %}
+  </head>
+  <body>
+    <h2>Open queue-entries:</h2>
+    <table>
+      <tr>
+        <th>job class name</th>
+        <th>open entries</th>
+      </tr>
+      {% for job_class_name, entries in open_queue_entries.items %}
+      <tr>
+        <td>{{ job_class_name }}</td>
+        <td>{{ entries }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% block "additional_content" %}{% endblock %}
+    {% block "additional_js" %}{% endblock %}
+  </body>
+</html>

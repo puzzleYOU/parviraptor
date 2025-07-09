@@ -1,0 +1,32 @@
+services:
+  test:
+    image: parviraptor-unittests
+    environment:
+      DB_HOST: OVERWRITE_ME_PER_TOX_ENVIRONMENT
+      DB_NAME: parviraptor
+      DB_USER: parviraptor
+      DB_PASSWORD: dev
+    depends_on:
+      - mysql5
+      - mysql8
+
+  mysql5:
+    image: mysql:5.7.40
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: test_parviraptor
+      MYSQL_USER: parviraptor
+      MYSQL_PASSWORD: dev
+    command:
+      - "--sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION"
+
+  mysql8:
+    image: mysql:8.0.31
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: test_parviraptor
+      MYSQL_USER: parviraptor
+      MYSQL_PASSWORD: dev
+    command:
+      - "--log_bin_trust_function_creators=1"
+      - "--sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
