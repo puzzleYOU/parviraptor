@@ -2,9 +2,9 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from parviraptor.monitoring import monitor_queue_entries
+from parviraptor.monitoring import QueueMonitoringResult, monitor_queue_entries
 
-from .models import DummyJob
+from .models import DummyJob, DummyProductJob
 
 
 class MonitoringTests(TestCase):
@@ -71,6 +71,35 @@ class MonitoringTests(TestCase):
             self.assertEqual(
                 1, self._first_monitoring_entry.long_processing_jobs_count
             )
+
+    def test_aggregates_results_across_multiple_jobs(self):
+        DummyJob.objects.create(a=1, b=2, status="PROCESSING")
+        with patch(
+            "tests.models.DummyJob.MAX_TIMEFRAME_FOR_JOB_PROCESSING_IN_MIN",
+            -1,
+        ):
+            with patch(
+                "tests.models.DummyProductJob.count_long_unprocessed_jobs",
+                lambda: 1337,
+            ):
+                result = monitor_queue_entries([DummyJob, DummyProductJob])
+                self.assertEqual(
+                    [
+                        QueueMonitoringResult(
+                            queue_name="DummyJob",
+                            failed_jobs_count=0,
+                            long_processing_jobs_count=1,
+                            long_unprocessed_jobs_count=0,
+                        ),
+                        QueueMonitoringResult(
+                            queue_name="DummyProductJob",
+                            failed_jobs_count=0,
+                            long_processing_jobs_count=0,
+                            long_unprocessed_jobs_count=1337,
+                        ),
+                    ],
+                    result,
+                )
 
     @property
     def _first_monitoring_entry(self):

@@ -21,6 +21,10 @@ class DummyJob(AbstractJobFactory.make_base_class([])):
 
     def process(self):
         sleep_randomly()
+
+        if self.a == 0 and self.b == 100000:
+            self.raise_temporary_failure("always fail temporarily")
+
         self.result = self.a + self.b
 
         # Normalerweise kommen die Signals von außerhalb. Zum Testen ist es

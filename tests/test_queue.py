@@ -66,9 +66,20 @@ class QueueTestCase(TestCase):
         DummyJob.objects.create(a=0, b=1)  # schlägt fünf Mal fehl
         self.run_worker()
         job = DummyJob.objects.get()
-        self.assertEquals(5, job.error_count)
-        self.assertEquals(1, job.result)
+        self.assertEqual(5, job.error_count)
+        self.assertEqual(1, job.result)
+        self.assertIsNone(job.error_message)
+        self.assertEqual(DummyJob.Status.PROCESSED, job.status)
         self.assert_waits(5, 5)
+
+    @disable_logging()
+    def test_exceed_temporary_failure_threshold(self):
+        DummyJob.objects.create(a=0, b=100000)
+        self.run_worker()  # always fails temporarily
+        job = DummyJob.objects.get()
+        self.assertEqual(10, job.error_count)
+        self.assertIsNone(job.result)
+        self.assertEqual(DummyJob.Status.NEW, job.status)
 
     @disable_logging()
     def test_retry_on_not_processable(self):
@@ -273,6 +284,15 @@ class QueueTestCase(TestCase):
             )
             worker.run()
 
+    @disable_logging()
+    def test_sigint_interrupts_sleep(self):
+        with self.assert_max_runtime(timedelta(seconds=2)):
+            self.delayed_send_sigint(os.getpid(), timedelta(seconds=1))
+            worker = QueueWorker(
+                DummyJob, pause_if_queue_empty=timedelta(seconds=3)
+            )
+            worker.run()
+
     @contextmanager
     def assert_max_runtime(self, max_runtime):
         t0 = time.time()
@@ -282,6 +302,11 @@ class QueueTestCase(TestCase):
 
     def delayed_send_sigterm(self, pid, delay):
         subprocess.Popen(["sh", "-c", f"sleep {delay.seconds} && kill {pid}"])
+
+    def delayed_send_sigint(self, pid, delay):
+        subprocess.Popen(
+            ["sh", "-c", f"sleep {delay.seconds} && kill -2 {pid}"]
+        )
 
     def run_worker(self):
         with self.exploding_event():
