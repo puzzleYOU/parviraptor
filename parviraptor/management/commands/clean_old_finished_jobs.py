@@ -74,11 +74,9 @@ def _delete_in_chunks(Job: type[AbstractJob], jobs):
     remainder = 0 if pks_count % CHUNK_SIZE == 0 else 1
     chunk_count = full_chunks + remainder
 
-    i = 1
-    for chunk in iter_chunks(CHUNK_SIZE, pks):
+    for i, chunk in enumerate(iter_chunks(CHUNK_SIZE, pks), start=1):
         logger.info(f"{Job.__name__}: processing chunk {i}/{chunk_count}")
         Job.objects.filter(pk__in=chunk).delete()
-        i += 1
 
 
 def _load_model_from_fully_qualified_name(name: str) -> type[AbstractJob]:
