@@ -123,9 +123,10 @@ class QueueWorker:
         self.logger.info(f"Exit signal caught. ({signal.Signals(signum).name})")
         self._caught_exit_signal.set()
 
-    def _sleep(self, duration):
-        self.logger.debug(f"... sleeping for {duration.seconds}s")
-        self._caught_exit_signal.wait(duration.seconds)
+    def _sleep(self, duration: timedelta):
+        seconds = duration.total_seconds()
+        self.logger.debug(f"... sleeping for {seconds}s")
+        self._caught_exit_signal.wait(seconds)
 
 
 class JobWorker:
