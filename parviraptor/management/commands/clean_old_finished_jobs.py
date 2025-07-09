@@ -57,11 +57,10 @@ class Command(BaseCommand):
 def _delete_old_finished_jobs(Job: type[AbstractJob], max_age_in_days: int):
     border = datetime.now(tz=timezone.utc) - timedelta(days=max_age_in_days)
     old_jobs = Job.objects.filter(modification_date__lte=border)
-    maybe_unfinished_job = old_jobs.exclude(
+    if maybe_unfinished_job := old_jobs.exclude(
         status__in=("PROCESSED", "DEFERRED", "IGNORED")
-    ).first()
-    if maybe_unfinished_job:
-        _delete_in_chunks(Job, old_jobs.filter(id__lt=maybe_unfinished_job.id))
+    ).first():
+        _delete_in_chunks(Job, old_jobs.filter(id__lt=maybe_unfinished_job.pk))
     else:
         _delete_in_chunks(Job, old_jobs)
 
