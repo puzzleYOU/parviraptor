@@ -213,7 +213,7 @@ class QueueTestCase(TestCase):
             # keine Jobs offen
             logger.mutate_to_idle_state()
             # verarbeitet 5 Jobs
-            for _ in range(0, 5):
+            for _ in range(5):
                 logger.mutate_to_processing_state()
             # Für längere Zeit keine Jobs mehr offen ergibt nur 1 Meldung.
             # Dadurch dass wir explizit loggen, wenn wir wieder Jobs
@@ -225,7 +225,7 @@ class QueueTestCase(TestCase):
             logger.mutate_to_idle_state()
             logger.mutate_to_idle_state()
             # verarbeitet nochmal 4 Jobs
-            for _ in range(0, 4):
+            for _ in range(4):
                 logger.mutate_to_processing_state()
             # keine Jobs mehr offen
             logger.mutate_to_idle_state()
@@ -302,7 +302,7 @@ class QueueTestCase(TestCase):
 
     def assert_waits(self, empty_queue_count, temporary_failure_count):
         temporary_failure_latency = 60 * sum(
-            [2 ** min(x, 5) for x in range(0, temporary_failure_count)]
+            [2 ** min(x, 5) for x in range(temporary_failure_count)]
         )
 
         expected = (

@@ -9,8 +9,7 @@ class ParallelityTests(QueueTestCase):
     def test_status_transition_from_new_to_processing_is_atomic(self):
         COUNTER_VALUE = 500
         jobs = [
-            IncrementCounterJob(counter_id="foo")
-            for _ in range(0, COUNTER_VALUE)
+            IncrementCounterJob(counter_id="foo") for _ in range(COUNTER_VALUE)
         ]
 
         # Ohne weitere Sperrmechanismen auf der Datenbank wird es dazu
@@ -25,7 +24,7 @@ class ParallelityTests(QueueTestCase):
         )
 
     def test_processes_strict_fifo_queue_in_right_order(self):
-        jobs = [DummyJob(a=1, b=3) for _ in range(0, 100)]
+        jobs = [DummyJob(a=1, b=3) for _ in range(100)]
         self.process_queue(DummyJob, jobs, 8)
 
         ordered_ids = self.get_ordered_ids(DummyJob.objects.all(), "pk")

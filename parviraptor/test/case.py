@@ -67,7 +67,7 @@ class QueueTestCase(TransactionTestCase):
                     print(traceback.format_exc())
                     self.failure_detail = f"{type(ex).__name__}: {ex}"
 
-        threads = [QueueWorkerThread() for _ in range(0, number_of_threads)]
+        threads = [QueueWorkerThread() for _ in range(number_of_threads)]
         # join() blocks the current thread, this is why we need separate loops
         for thread in threads:
             thread.start()
