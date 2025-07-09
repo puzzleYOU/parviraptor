@@ -202,10 +202,11 @@ class AbstractJob(models.Model):
                 for field in dependent_fields
             ]
         )
-        return [
-            dict(zip(dependent_fields * len(dependent_fields), combination))
+        filters = [
+            dict(zip(dependent_fields, combination))
             for combination in combinations
         ]
+        return filters
 
     @classmethod
     def count_failed_jobs(cls) -> int:
