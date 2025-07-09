@@ -77,8 +77,8 @@ Just add `'parviraptor'` to your `INSTALLED_APPS` Django setting as usual.
   - generic call: `./manage.py process_queue <app_label> <model>`.
   - example: `./manage.py process_queue very_busy_app HeavyDutyJob`
 
-- The rudimentally implemented management command `clean_old_processed_jobs`
-  can be used for cleaning up stale job entries.
+- The management command `clean_old_processed_jobs` can be used for cleaning
+  up stale job entries.
 
 - `parviraptor.test` provides a simple API for testing job queues.
   `parviraptor.test.make_test_case_for_all_queues` infers a test class which
