@@ -13,7 +13,7 @@ setup(
     license="MIT",
     packages=find_packages("."),
     install_requires=[
-        "Django<5",
+        "Django",
     ],
     zip_safe=True,
 )
