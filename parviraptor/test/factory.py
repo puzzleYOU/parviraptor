@@ -1,8 +1,15 @@
+from parviraptor.models.abstract import AbstractJob
+
 from ..utils import enumerate_job_models
 from .case import QueueTestCase
 
 
-def make_test_case_for_all_queues(**static_fields) -> type[QueueTestCase]:
+def make_test_case_for_all_queues[
+    TJob: AbstractJob
+](
+    job_classes_to_ignore: list[type[TJob]] | None = None,
+    **static_fields,
+) -> type[QueueTestCase]:
     """
     Infers a test case for all non-abstract parviraptor job models within
     the current Django environment.
@@ -13,11 +20,19 @@ def make_test_case_for_all_queues(**static_fields) -> type[QueueTestCase]:
     instances.
 
     Parameters:
+    - `job_classes_to_ignore`: One might experience that it might come to
+      race conditions if job queues depend on each other in any manner. It
+      might be intentional to exclude such queues or having disjoint testcases
+      for such groups of queues.
     - `static_fields`: keyword parameters. they are directly passed as static
       members to the test class. One might want to pass `maxDiff=None` and
       `fixtures=["some-fixture.json"]`, for example.
     """
-    model_classes = enumerate_job_models()
+    model_classes = [
+        installed_model
+        for installed_model in enumerate_job_models()
+        if installed_model not in (job_classes_to_ignore or [])
+    ]
 
     class _TestCase(QueueTestCase):
         queues = [model_class.__name__ for model_class in model_classes]

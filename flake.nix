@@ -13,11 +13,12 @@
       in with pkgs; {
         devShell = mkShell {
           buildInputs = [
-            python3
-            python3Packages.pip
-            python3Packages.black
-            python3Packages.flake8
-            python3Packages.isort
+            (pkgs.python312.withPackages (ps: [
+                ps.pip
+                ps.black
+                ps.flake8
+                ps.isort
+            ]))
             just
           ];
         };
