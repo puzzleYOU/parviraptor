@@ -27,6 +27,19 @@ class FactoryTestCase(make_test_case_for_all_queues()):
         )
 
 
+class FactoryTestCaseWithIgnoredQueues(
+    make_test_case_for_all_queues(
+        job_classes_to_ignore=[DummyJob, DummyProductJob],
+    )
+):
+    def setUp(self):
+        super().setUp()
+        Counter.objects.create(counter_id="foo", value=0)
+        IncrementCounterJob.objects.bulk_create(
+            [IncrementCounterJob(counter_id="foo") for _ in range(100)]
+        )
+
+
 class MakeTestCaseForAllQueuesTests(TestCase):
     def test_covers_all_models_within_current_django_installation(self):
         self.assertEqual(
@@ -42,3 +55,16 @@ class MakeTestCaseForAllQueuesTests(TestCase):
             some_arbitrary_field=1337,
         )
         self.assertEqual(1337, WithStaticFields.some_arbitrary_field)
+
+    def test_queues_can_be_ignored_correctly(self):
+        self.assertEqual(
+            ["IncrementCounterJob"],
+            FactoryTestCaseWithIgnoredQueues.queues,
+        )
+
+    def test_does_not_ignore_anything_on_empty_list(self):
+        WithEmptyList = make_test_case_for_all_queues(job_classes_to_ignore=[])
+        self.assertEqual(
+            ["DummyJob", "IncrementCounterJob", "DummyProductJob"],
+            WithEmptyList.queues,
+        )
