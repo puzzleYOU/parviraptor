@@ -56,10 +56,10 @@ class QueueTestCase(TestCase):
         modification_date_after = job_a.modification_date
         self.assertGreater(modification_date_after, modification_date_before)
 
-        self.assertEquals(job_a.status, DummyJob.Status.PROCESSED)
-        self.assertEquals(job_a.result, 3)
-        self.assertEquals(job_b.status, DummyJob.Status.PROCESSED)
-        self.assertEquals(job_b.result, 10)
+        self.assertEqual(job_a.status, DummyJob.Status.PROCESSED)
+        self.assertEqual(job_a.result, 3)
+        self.assertEqual(job_b.status, DummyJob.Status.PROCESSED)
+        self.assertEqual(job_b.result, 10)
 
     @disable_logging()
     def test_retry_on_temporary_failure(self):
@@ -87,8 +87,8 @@ class QueueTestCase(TestCase):
         with patch.object(DummyJob, "is_processable", lambda self: False):
             self.run_worker()
         job = DummyJob.objects.get()
-        self.assertEquals(DummyJob.Status.NEW, job.status)
-        self.assertEquals(0, job.error_count)
+        self.assertEqual(DummyJob.Status.NEW, job.status)
+        self.assertEqual(0, job.error_count)
         self.assertIsNone(job.result)
         self.assert_waits(10, 0)
 
@@ -101,8 +101,8 @@ class QueueTestCase(TestCase):
             self.run_worker()
 
         job = DummyJob.objects.get()
-        self.assertEquals(10, job.error_count)
-        self.assertEquals(1, job.result)
+        self.assertEqual(10, job.error_count)
+        self.assertEqual(1, job.result)
         self.assert_waits(0, 10)
 
         # Zur Nachvollziehbarkeit:
@@ -121,7 +121,7 @@ class QueueTestCase(TestCase):
             + 2**5
         )
 
-        self.assertEquals(
+        self.assertEqual(
             temporary_failure_latency,
             self.exploding_event.total_wait_timeouts,
         )
@@ -131,7 +131,7 @@ class QueueTestCase(TestCase):
         job = DummyJob.objects.create(a=1, b=0)  # wirft `ValueError`
         self.run_worker()
         job.refresh_from_db()
-        self.assertEquals(job.status, DummyJob.Status.FAILED)
+        self.assertEqual(job.status, DummyJob.Status.FAILED)
 
     @disable_logging()
     def test_status_failed_on_invalidjoberror(self):
@@ -168,8 +168,8 @@ class QueueTestCase(TestCase):
         self.run_worker()
         for job in [job_a, job_b]:
             job.refresh_from_db()
-            self.assertNotEquals(DummyJob.Status.NEW, job.status)
-            self.assertNotEquals(None, job.result)
+            self.assertNotEqual(DummyJob.Status.NEW, job.status)
+            self.assertNotEqual(None, job.result)
 
     @disable_logging()
     def test_fifo_depending_jobs_are_set_to_failed(self):
@@ -180,7 +180,7 @@ class QueueTestCase(TestCase):
 
         for job in [job_a, job_b, job_c, job_d]:
             job.refresh_from_db()
-            self.assertEquals(DummyJob.Status.NEW, job.status)
+            self.assertEqual(DummyJob.Status.NEW, job.status)
         self.run_worker()
         for job in [job_a, job_b, job_c, job_d]:
             job.refresh_from_db()
@@ -198,8 +198,8 @@ class QueueTestCase(TestCase):
         job = DummyJob.objects.create(a=0, b=2)  # temporärer Fehler
         self.run_worker()
         job.refresh_from_db()
-        self.assertEquals(DummyJob.Status.NEW, job.status)
-        self.assertEquals(2, job.result)
+        self.assertEqual(DummyJob.Status.NEW, job.status)
+        self.assertEqual(2, job.result)
 
     @disable_logging()
     def test_sigterm_handling(self):
@@ -211,12 +211,12 @@ class QueueTestCase(TestCase):
         # Der erste Job wurde vollständig verarbeitet, da das Signal-Handling
         # immer nur zwischen Jobs greift.
         job_a.refresh_from_db()
-        self.assertEquals(DummyJob.Status.PROCESSED, job_a.status)
+        self.assertEqual(DummyJob.Status.PROCESSED, job_a.status)
 
         # Der zweite Job hat immer noch den Status NEW:
         job_b.refresh_from_db()
-        self.assertEquals(DummyJob.Status.NEW, job_b.status)
-        self.assertEquals(None, job_b.result)
+        self.assertEqual(DummyJob.Status.NEW, job_b.status)
+        self.assertEqual(None, job_b.result)
 
     def test_logging(self):
         logger = QueueWorkerLogger()
@@ -334,7 +334,7 @@ class QueueTestCase(TestCase):
             empty_queue_count * self.pause_if_queue_empty.seconds
             + temporary_failure_latency
         )
-        self.assertEquals(expected, self.exploding_event.total_wait_timeouts)
+        self.assertEqual(expected, self.exploding_event.total_wait_timeouts)
 
 
 class ExplodingEvent:
