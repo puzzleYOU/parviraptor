@@ -27,19 +27,19 @@ tox-unittest *ARGS='':
 
 # Checks all coding conventions
 lint:
-    flake8 parviraptor/ tests/
+    python -m flake8 parviraptor/ tests/
     just isort --check-only --diff
     just black --check
 
 # Runs isort against each source directory
 isort *ARGS='':
-    isort parviraptor/ tests/ {{ARGS}}
+    python -m isort parviraptor/ tests/ {{ARGS}}
 
 # Runs black against each source directory
 black *ARGS='':
     black \
       --line-length 80 \
-      --target-version py311 \
+      --target-version py312 \
       parviraptor \
       tests \
       {{ARGS}}
