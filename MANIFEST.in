@@ -1,0 +1,4 @@
+include LICENSE
+include README.md
+recursive-include parviraptor/static *
+recursive-include parviraptor/templates *
