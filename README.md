@@ -37,6 +37,10 @@ this for the first time might require to run `direnv allow`. Shorthand
 commands, for example those mentioned in chapter "Running tests", can be
 enumerated using `just --help`.
 
+In order to test whether the package would be built correctly, you can
+run `python setup.py build` in the development shell to inspect whether
+`build/lib/parviraptor/` looks as expected.
+
 ## Installation
 
 Just add `'parviraptor'` to your `INSTALLED_APPS` Django setting as usual.
