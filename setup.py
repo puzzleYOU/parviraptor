@@ -6,6 +6,7 @@ setup(
     name="parviraptor",
     version=__version__,
     description="Django-based job queue",
+    include_package_data=True,
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     author="puzzleYOU GmbH",

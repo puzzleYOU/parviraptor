@@ -18,6 +18,7 @@
                 ps.black
                 ps.flake8
                 ps.isort
+                ps.setuptools
             ]))
             just
           ];
