@@ -54,86 +54,11 @@ class QueueWorkerLogger:
         self._counter = 0
 
 
-class QueueWorker:
-    """Processing a certain job queue.
-
-    Example:
-
-    >>> worker = QueueWorker(DummyJob)
-    >>> worker.run()  # blocks infinitely
-    """
-
-    def run(self):
-        while not self._caught_exit_signal.is_set():
-            try:
-                job_worker = self._get_next_job_and_update_status()
-                self.logger.mutate_to_processing_state()
-                job_worker.process()
-            except self.Job.DoesNotExist:
-                self.logger.mutate_to_idle_state()
-                self._sleep(self.pause_if_queue_empty)
-            except UnprocessableJob:
-                self.logger.mutate_to_unprocessable_state()
-                self._sleep(self.pause_if_queue_empty)
-            except TemporaryJobFailure as e:
-                # this would not be reraised if `error_count` was reached.
-                # see JobWorker.
-                minutes = self._calc_latency_in_minutes(e.error_count)
-                self._sleep(timedelta(minutes=minutes))
-
-    def _calc_latency_in_minutes(self, error_count: int) -> int:
-        match self.Job.BACKOFF_STRATEGY:
-            case BackoffStrategy.CONSTANT:
-                return self.Job.BACKOFF_STEP_MINUTES
-            case BackoffStrategy.EXPONENTIAL:
-                return self.Job.BACKOFF_STEP_MINUTES ** min(error_count, 5)
-
-    def _get_next_job_and_update_status(self):
-        job = self.Job.fetch_next_job()
-        if job is None:
-            raise self.Job.DoesNotExist()
-        elif not job.is_processable():
-            job.status = JobStatus.NEW
-            job.save()
-            raise UnprocessableJob()
-        else:
-            return JobWorker(
-                job,
-                temporary_failure_threshold=self.temporary_failure_threshold,
-            )
-
+class JobWorker[TJob: AbstractJob]:
     def __init__(
         self,
-        Job: type[AbstractJob],
-        pause_if_queue_empty=timedelta(minutes=1),
-        temporary_failure_threshold=DEFAULT_TEMPORARY_FAILURE_THRESHOLD,
-    ):
-        self.Job = Job
-        self.pause_if_queue_empty = pause_if_queue_empty
-        self.temporary_failure_threshold = temporary_failure_threshold
-        self.logger = QueueWorkerLogger()
-        self._setup_signal_handling()
-
-    def _setup_signal_handling(self):
-        self._caught_exit_signal = threading.Event()
-        for sig in [signal.SIGINT, signal.SIGTERM]:
-            signal.signal(sig, self._exit_gracefully)
-
-    def _exit_gracefully(self, signum, frame):
-        self.logger.info(f"Exit signal caught. ({signal.Signals(signum).name})")
-        self._caught_exit_signal.set()
-
-    def _sleep(self, duration: timedelta):
-        seconds = duration.total_seconds()
-        self.logger.debug(f"... sleeping for {seconds}s")
-        self._caught_exit_signal.wait(seconds)
-
-
-class JobWorker:
-    def __init__(
-        self,
-        job,
-        temporary_failure_threshold=DEFAULT_TEMPORARY_FAILURE_THRESHOLD,
+        job: TJob,
+        temporary_failure_threshold: int = DEFAULT_TEMPORARY_FAILURE_THRESHOLD,
     ):
         if job.status != JobStatus.PROCESSING:
             raise ValueError(f"expected job to be PROCESSING, got {job.status}")
@@ -192,5 +117,84 @@ class JobWorker:
     def _error(self, message: str):
         logger.error(self._format_log_message(message))
 
-    def _format_log_message(self, message: str):
-        return f"{type(self.job).__name__} {self.job.id}: {message}"
+    def _format_log_message(self, message: str) -> str:
+        return f"{type(self.job).__name__} {self.job.pk}: {message}"
+
+
+class QueueWorker[TJob: AbstractJob]:
+    """Processing a certain job queue.
+
+    Example:
+
+    >>> worker = QueueWorker(DummyJob)
+    >>> worker.run()  # blocks infinitely
+    """
+
+    def __init__(
+        self,
+        Job: type[TJob],
+        pause_if_queue_empty=timedelta(minutes=1),
+        temporary_failure_threshold=DEFAULT_TEMPORARY_FAILURE_THRESHOLD,
+    ):
+        self.Job = Job
+        self.pause_if_queue_empty = pause_if_queue_empty
+        self.temporary_failure_threshold = temporary_failure_threshold
+        self.logger = QueueWorkerLogger()
+        self._setup_signal_handling()
+        self.current_job_worker: JobWorker[TJob] | None = None
+
+    def run(self):
+        while not self._caught_exit_signal.is_set():
+            try:
+                self.current_job_worker = self._get_next_job_and_update_status()
+                self.logger.mutate_to_processing_state()
+                self.current_job_worker.process()
+            except self.Job.DoesNotExist:
+                self.current_job_worker = None
+                self.logger.mutate_to_idle_state()
+                self._sleep(self.pause_if_queue_empty)
+            except UnprocessableJob:
+                self.logger.mutate_to_unprocessable_state()
+                self._sleep(self.pause_if_queue_empty)
+            except TemporaryJobFailure as e:
+                # this would not be reraised if `error_count` was reached.
+                # see JobWorker.
+                minutes = self._calc_latency_in_minutes(e.error_count)
+                self._sleep(timedelta(minutes=minutes))
+
+    def _calc_latency_in_minutes(self, error_count: int) -> int:
+        match self.Job.BACKOFF_STRATEGY:
+            case BackoffStrategy.CONSTANT:
+                return self.Job.BACKOFF_STEP_MINUTES
+            case BackoffStrategy.EXPONENTIAL:
+                return self.Job.BACKOFF_STEP_MINUTES ** min(error_count, 5)
+
+    def _get_next_job_and_update_status(self) -> JobWorker[TJob]:
+        job = self.Job.fetch_next_job()
+        if job is None:
+            raise self.Job.DoesNotExist()
+        elif not job.is_processable():
+            job.status = JobStatus.NEW
+            job.save()
+            raise UnprocessableJob()
+        else:
+            return JobWorker(
+                job,
+                temporary_failure_threshold=self.temporary_failure_threshold,
+            )
+
+    def _setup_signal_handling(self):
+        self._caught_exit_signal = threading.Event()
+        for sig in [signal.SIGINT, signal.SIGTERM]:
+            signal.signal(sig, self._exit_gracefully)
+
+    def _exit_gracefully(self, signum, frame):
+        self.logger.info(f"Exit signal caught. ({signal.Signals(signum).name})")
+        self._caught_exit_signal.set()
+        if self.current_job_worker is not None:
+            self.current_job_worker.job.on_job_terminated()
+
+    def _sleep(self, duration: timedelta):
+        seconds = duration.total_seconds()
+        self.logger.debug(f"... sleeping for {seconds}s")
+        self._caught_exit_signal.wait(seconds)
