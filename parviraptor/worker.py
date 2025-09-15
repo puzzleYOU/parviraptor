@@ -141,14 +141,16 @@ class QueueWorker[TJob: AbstractJob]:
         self.temporary_failure_threshold = temporary_failure_threshold
         self.logger = QueueWorkerLogger()
         self._setup_signal_handling()
+        self.current_job_worker: JobWorker[TJob] | None = None
 
     def run(self):
         while not self._caught_exit_signal.is_set():
             try:
-                job_worker = self._get_next_job_and_update_status()
+                self.current_job_worker = self._get_next_job_and_update_status()
                 self.logger.mutate_to_processing_state()
-                job_worker.process()
+                self.current_job_worker.process()
             except self.Job.DoesNotExist:
+                self.current_job_worker = None
                 self.logger.mutate_to_idle_state()
                 self._sleep(self.pause_if_queue_empty)
             except UnprocessableJob:
