@@ -118,7 +118,7 @@ class JobWorker[TJob: AbstractJob]:
         logger.error(self._format_log_message(message))
 
     def _format_log_message(self, message: str) -> str:
-        return f"{type(self.job).__name__} {self.job.id}: {message}"
+        return f"{type(self.job).__name__} {self.job.pk}: {message}"
 
 
 class QueueWorker[TJob: AbstractJob]:
