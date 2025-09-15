@@ -93,6 +93,9 @@ class AbstractJob(models.Model):
         """
         raise NotImplementedError()
 
+    def on_job_terminated(self):
+        pass
+
     def is_processable(self) -> bool:
         """Returns whether the job queue is processable.
 

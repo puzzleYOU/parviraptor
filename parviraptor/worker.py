@@ -191,6 +191,8 @@ class QueueWorker[TJob: AbstractJob]:
     def _exit_gracefully(self, signum, frame):
         self.logger.info(f"Exit signal caught. ({signal.Signals(signum).name})")
         self._caught_exit_signal.set()
+        if self.current_job_worker is not None:
+            self.current_job_worker.job.on_job_terminated()
 
     def _sleep(self, duration: timedelta):
         seconds = duration.total_seconds()
