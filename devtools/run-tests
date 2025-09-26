@@ -6,7 +6,7 @@
 docker build . -f Dockerfile.tests -t parviraptor-unittests || exit 1
 docker_compose="docker compose -f $(dirname $0)/run-tests.compose.yaml"
 
-$docker_compose run test tox $@
+$docker_compose run --rm test tox $@
 exit_status=$?
 $docker_compose down --volumes --remove-orphans
 exit $exit_status
