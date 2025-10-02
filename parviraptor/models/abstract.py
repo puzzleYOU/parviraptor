@@ -34,7 +34,7 @@ class JobStatus(models.TextChoices):
 
     IGNORED = "IGNORED"
     """
-    Job will be ignored for all upcomming runs.
+    Job will be ignored for all upcoming runs.
     Manual interaction may be required!
     """
 
