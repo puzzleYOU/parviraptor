@@ -129,10 +129,10 @@ class AbstractJob(models.Model):
         return True
 
     @classmethod
-    def fetch_next_job(cls, id_gt=None):
-        job = cls._fetch_next_new_job(id_gt=id_gt)
+    def fetch_next_job(cls, id_gt=None, status=JobStatus.NEW):
+        job = cls._fetch_next_job_by_status(id_gt=id_gt, status=status)
         if job is None:
-            raise cls.DoesNotExist()
+            return None
 
         if cls.get_dependent_fields() is not None:
             # If current job depends on failed predecessors, we can set this
@@ -155,7 +155,7 @@ class AbstractJob(models.Model):
         # "another process already took care of this job". In this case we
         # can just silently continue.
         updated_jobs_count = cls.objects.filter(
-            status=JobStatus.NEW, id=job.id
+            status=status, id=job.id
         ).update(
             status=JobStatus.PROCESSING,
             modification_date=datetime.now(tz=timezone.utc),
@@ -170,8 +170,8 @@ class AbstractJob(models.Model):
             raise RuntimeError()
 
     @classmethod
-    def _fetch_next_new_job(cls, id_gt=None):
-        jobs = cls.objects.filter(status=JobStatus.NEW)
+    def _fetch_next_job_by_status(cls, id_gt=None, status=JobStatus.NEW):
+        jobs = cls.objects.filter(status=status)
         if id_gt is not None:
             jobs = jobs.filter(id__gt=id_gt)
         return jobs.order_by("id").first()

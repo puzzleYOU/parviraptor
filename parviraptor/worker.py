@@ -170,7 +170,9 @@ class QueueWorker[TJob: AbstractJob]:
                 return self.Job.BACKOFF_STEP_MINUTES ** min(error_count, 5)
 
     def _get_next_job_and_update_status(self) -> JobWorker[TJob]:
-        job = self.Job.fetch_next_job()
+        job = self.Job.fetch_next_job() or self.Job.fetch_next_job(
+            status=JobStatus.DEFERRED
+        )
         if job is None:
             raise self.Job.DoesNotExist()
         elif not job.is_processable():
