@@ -74,12 +74,22 @@ class QueueTestCase(TestCase):
 
     @disable_logging()
     def test_exceed_temporary_failure_threshold(self):
+        self.max_wait_calls = 20
         DummyJob.objects.create(a=0, b=100000)
         self.run_worker()  # always fails temporarily
         job = DummyJob.objects.get()
-        self.assertEqual(10, job.error_count)
+        self.assertEqual(20, job.error_count)
         self.assertIsNone(job.result)
-        self.assertEqual(DummyJob.Status.NEW, job.status)
+        self.assertEqual(DummyJob.Status.FAILED, job.status)
+
+    @disable_logging()
+    def test_deferred_threshold(self):
+        self.max_wait_calls = 20
+        DummyJob.objects.create(a=0, b=300)
+        self.run_worker()
+        job = DummyJob.objects.get()
+        self.assertEqual(20, job.error_count)
+        self.assertEqual(DummyJob.Status.FAILED, job.status)
 
     @disable_logging()
     def test_retry_on_not_processable(self):
@@ -154,8 +164,11 @@ class QueueTestCase(TestCase):
         job = DummyJob.objects.create(a=150, b=150)  # wirft `DeferJob`
         self.run_worker()
         job.refresh_from_db()
-        self.assertEqual(DummyJob.Status.DEFERRED, job.status)
-        self.assertEqual("Deferring result 300", job.error_message)
+        self.assertEqual(DummyJob.Status.FAILED, job.status)
+        self.assertEqual(
+            "deferred retry threshold exceeded: Deferring result 300",
+            job.error_message,
+        )
 
     @disable_logging()
     def test_job_changes_get_saved_on_success_and_failure(self):

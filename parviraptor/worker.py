@@ -16,6 +16,7 @@ from .models.abstract import AbstractJob, BackoffStrategy, JobStatus
 logger = logging.getLogger(__name__)
 
 DEFAULT_TEMPORARY_FAILURE_THRESHOLD = 19
+DEFAULT_DEFERRED_RETRY_THRESHOLD = 19
 
 
 class QueueWorkerLogger:
@@ -59,11 +60,13 @@ class JobWorker[TJob: AbstractJob]:
         self,
         job: TJob,
         temporary_failure_threshold: int = DEFAULT_TEMPORARY_FAILURE_THRESHOLD,
+        deferred_retry_threshold: int = DEFAULT_DEFERRED_RETRY_THRESHOLD,
     ):
         if job.status != JobStatus.PROCESSING:
             raise ValueError(f"expected job to be PROCESSING, got {job.status}")
         self.job = job
         self.temporary_failure_threshold = temporary_failure_threshold
+        self.deferred_retry_threshold = deferred_retry_threshold
 
     def process(self):
         try:
@@ -73,6 +76,13 @@ class JobWorker[TJob: AbstractJob]:
             self._info(f"Deferring job: {e}")
             self.job.status = JobStatus.DEFERRED
             self.job.error_message = str(e)
+            self.job.error_count += 1
+            if self.job.error_count > self.deferred_retry_threshold:
+                msg = "deferred retry threshold exceeded"
+                self._error(msg)
+                self.job.status = JobStatus.FAILED
+                self.job.error_message = f"{msg}: {str(e)}"
+                self._log_status()
         except IgnoreJob as e:
             self._info(f"Ignoring job: {e}")
             self.job.status = JobStatus.IGNORED
