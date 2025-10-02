@@ -12,12 +12,34 @@ from parviraptor.exceptions import TemporaryJobFailure
 
 class JobStatus(models.TextChoices):
     NEW = "NEW"
+    """
+    Job is created and ready to be processed.
+    """
+
     PROCESSING = "PROCESSING"
+    """The job is currently being processed"""
+
     PROCESSED = "PROCESSED"
+    """The job was successfully processed"""
+
     SQUASHED = "SQUASHED"
+    """The job was squashed with one or more jobs"""
+
     FAILED = "FAILED"
+    """
+    Status will be set when the retry threshold is reached
+    (retries > error_count) or when specific exceptions were raised.
+    => see description of AbstractJob.process()
+    """
+
     IGNORED = "IGNORED"
+    """
+    Job will be ignored for all upcomming runs.
+    Manual interaction may be required!
+    """
+
     DEFERRED = "DEFERRED"
+    """Jobs will run after all 'NEW'-Jobs are run."""
 
 
 @enum.unique
