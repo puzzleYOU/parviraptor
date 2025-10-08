@@ -14,18 +14,18 @@ from .utils import disable_logging
 
 
 class QueueTestCase(TestCase):
-    """Tests für `QueueWorker`.
+    """Tests for `QueueWorker`.
 
-    Ein Problem beim Testen des Workers ist, dass `QueueWorker.run()` im
-    Wesentlichen eine Endlosschleife ist. Dazu patch-en wir `threading.Event`
-    mit `ExplodingEvent`, damit nur eine definierte Anzahl an `wait`-Aufrufen
-    möglich ist und danach der QueueWorker durch eine
-    `MaxCallsReached`-Exception beendet wird.
+    One problem when testing the worker is that `QueueWorker.run()` essentially
+    generates an endless loop. To solve this, we patch `threading.Event` with
+    `ExplodingEvent`, which will accept a defined number of `wait` calls, after
+    which the QueueWorker will finish with a `MaxCallsReached` exception.
 
-    Standardmäßig (in `setUp`) werden die Pausen für "leere Queue" (1s) und
-    "temporärer Fehler" (100s) stark voneinander abweichend konfiguriert,
-    v.a. unter Berücksichtigung der maximalen Wait-Zahl (9). Das ermöglicht mit
-    `assert_waits` exakt zu prüfen, wie oft welcher Fall aufgetreten ist.
+
+    By default, the pauses for "empty queue" (1s) and "temporary error" (100s)
+    are configured (in `setUp`) to greatly differ in length and take the
+    maximum wait number (9) into account. This allows you to use `assert_waits`
+    to check exactly how often each case occurred.
     """
 
     def setUp(self):
@@ -50,7 +50,7 @@ class QueueTestCase(TestCase):
         job_b = DummyJob.objects.create(a=3, b=7)
 
         self.run_worker()
-        modification_date_before = job_a.modification_date  # ein Job reicht
+        modification_date_before = job_a.modification_date  # one job is enough
         job_a.refresh_from_db()
         job_b.refresh_from_db()
         modification_date_after = job_a.modification_date
@@ -63,7 +63,7 @@ class QueueTestCase(TestCase):
 
     @disable_logging()
     def test_retry_on_temporary_failure(self):
-        DummyJob.objects.create(a=0, b=1)  # schlägt fünf Mal fehl
+        DummyJob.objects.create(a=0, b=1)  # fails five times
         self.run_worker()
         job = DummyJob.objects.get()
         self.assertEqual(5, job.error_count)
@@ -74,12 +74,22 @@ class QueueTestCase(TestCase):
 
     @disable_logging()
     def test_exceed_temporary_failure_threshold(self):
+        self.max_wait_calls = 20
         DummyJob.objects.create(a=0, b=100000)
         self.run_worker()  # always fails temporarily
         job = DummyJob.objects.get()
-        self.assertEqual(10, job.error_count)
+        self.assertEqual(20, job.error_count)
         self.assertIsNone(job.result)
-        self.assertEqual(DummyJob.Status.NEW, job.status)
+        self.assertEqual(DummyJob.Status.FAILED, job.status)
+
+    @disable_logging()
+    def test_deferred_threshold(self):
+        self.max_wait_calls = 20
+        DummyJob.objects.create(a=0, b=300)
+        self.run_worker()
+        job = DummyJob.objects.get()
+        self.assertEqual(20, job.error_count)
+        self.assertEqual(DummyJob.Status.FAILED, job.status)
 
     @disable_logging()
     def test_retry_on_not_processable(self):
@@ -105,16 +115,16 @@ class QueueTestCase(TestCase):
         self.assertEqual(1, job.result)
         self.assert_waits(0, 10)
 
-        # Zur Nachvollziehbarkeit:
+        # for traceability:
         temporary_failure_latency = 60 * (
-            # die ersten 6 Fehlschläge geht es exponentiell hoch
+            # increases exponentially for the first six errors
             2**0
             + 2**1
             + 2**2
             + 2**3
             + 2**4
             + 2**5
-            # ab jetzt aber nur noch konstant
+            # only constants from here on out
             + 2**5
             + 2**5
             + 2**5
@@ -128,14 +138,14 @@ class QueueTestCase(TestCase):
 
     @disable_logging()
     def test_status_failed_on_exception(self):
-        job = DummyJob.objects.create(a=1, b=0)  # wirft `ValueError`
+        job = DummyJob.objects.create(a=1, b=0)  # throws `ValueError`
         self.run_worker()
         job.refresh_from_db()
         self.assertEqual(job.status, DummyJob.Status.FAILED)
 
     @disable_logging()
     def test_status_failed_on_invalidjoberror(self):
-        job = DummyJob.objects.create(a=50, b=50)  # wirft `InvalidJobError`
+        job = DummyJob.objects.create(a=50, b=50)  # throws `InvalidJobError`
         self.run_worker()
         job.refresh_from_db()
         self.assertEqual(DummyJob.Status.FAILED, job.status)
@@ -143,7 +153,7 @@ class QueueTestCase(TestCase):
 
     @disable_logging()
     def test_status_ignored_on_ignorejob(self):
-        job = DummyJob.objects.create(a=100, b=100)  # wirft `IgnoreJob`
+        job = DummyJob.objects.create(a=100, b=100)  # throws `IgnoreJob`
         self.run_worker()
         job.refresh_from_db()
         self.assertEqual(DummyJob.Status.IGNORED, job.status)
@@ -151,20 +161,22 @@ class QueueTestCase(TestCase):
 
     @disable_logging()
     def test_status_deferred_on_deferjob(self):
-        job = DummyJob.objects.create(a=150, b=150)  # wirft `DeferJob`
+        job = DummyJob.objects.create(a=150, b=150)  # throws `DeferJob`
         self.run_worker()
         job.refresh_from_db()
-        self.assertEqual(DummyJob.Status.DEFERRED, job.status)
-        self.assertEqual("Deferring result 300", job.error_message)
+        self.assertEqual(DummyJob.Status.FAILED, job.status)
+        self.assertEqual(
+            "deferred retry threshold exceeded: Deferring result 300",
+            job.error_message,
+        )
 
     @disable_logging()
     def test_job_changes_get_saved_on_success_and_failure(self):
-        # Wir können das Speichern bei temporären Fehlern nicht testen, da wir
-        # die Queue-Verarbeitung abbrechen müssen, bevor der Job erfolgreich
-        # verarbeitet wird. Siehe
-        # `test_job_changes_get_saved_on_temporary_failure`.
-        job_a = DummyJob.objects.create(a=1, b=2)  # keine Fehler
-        job_b = DummyJob.objects.create(a=2, b=0)  # Fehler
+        # We cannot test saving in the case of temporary errors, since we must
+        # abort processing of the queue before the job is processed
+        # successfully. See `test_job_changes_get_saved_on_temporary_failure`
+        job_a = DummyJob.objects.create(a=1, b=2)  # no error
+        job_b = DummyJob.objects.create(a=2, b=0)  # error
         self.run_worker()
         for job in [job_a, job_b]:
             job.refresh_from_db()
@@ -173,10 +185,10 @@ class QueueTestCase(TestCase):
 
     @disable_logging()
     def test_fifo_depending_jobs_are_set_to_failed(self):
-        job_a = DummyJob.objects.create(a=1, b=2)  # keine Fehler
-        job_b = DummyJob.objects.create(a=1, b=0)  # Fehler
-        job_c = DummyJob.objects.create(a=1, b=2)  # c und d hängen von job_b ab
-        job_d = DummyJob.objects.create(a=1, b=2)  # → werden dann auch FAILED
+        job_a = DummyJob.objects.create(a=1, b=2)  # no error
+        job_b = DummyJob.objects.create(a=1, b=0)  # error
+        job_c = DummyJob.objects.create(a=1, b=2)  # c and d depend on job_b
+        job_d = DummyJob.objects.create(a=1, b=2)  # → will also be 'FAILED'
 
         for job in [job_a, job_b, job_c, job_d]:
             job.refresh_from_db()
@@ -195,7 +207,7 @@ class QueueTestCase(TestCase):
     @disable_logging()
     def test_job_changes_get_saved_on_temporary_failure(self):
         self.max_wait_calls = 0
-        job = DummyJob.objects.create(a=0, b=2)  # temporärer Fehler
+        job = DummyJob.objects.create(a=0, b=2)  # temporary error
         self.run_worker()
         job.refresh_from_db()
         self.assertEqual(DummyJob.Status.NEW, job.status)
@@ -203,17 +215,17 @@ class QueueTestCase(TestCase):
 
     @disable_logging()
     def test_sigterm_handling(self):
-        job_a = DummyJob.objects.create(a=-1, b=-1)  # sendet SIGTERM
+        job_a = DummyJob.objects.create(a=-1, b=-1)  # sends SIGTERM
         job_b = DummyJob.objects.create(a=1, b=2)
         self.run_worker()
         self.assert_waits(0, 0)
 
-        # Der erste Job wurde vollständig verarbeitet, da das Signal-Handling
-        # immer nur zwischen Jobs greift.
+        # The first job was processed completely, as the signal-handling
+        # only takes effect between jobs
         job_a.refresh_from_db()
         self.assertEqual(DummyJob.Status.PROCESSED, job_a.status)
 
-        # Der zweite Job hat immer noch den Status NEW:
+        # The second job still has the status NEW:
         job_b.refresh_from_db()
         self.assertEqual(DummyJob.Status.NEW, job_b.status)
         self.assertEqual(None, job_b.result)
@@ -221,39 +233,40 @@ class QueueTestCase(TestCase):
     def test_logging(self):
         logger = QueueWorkerLogger()
         with self.assertLogs() as cm:
-            # keine Jobs offen
+            # no open jobs
             logger.mutate_to_idle_state()
-            # verarbeitet 5 Jobs
+            # processes 5 jobs
             for _ in range(5):
                 logger.mutate_to_processing_state()
-            # Für längere Zeit keine Jobs mehr offen ergibt nur 1 Meldung.
-            # Dadurch dass wir explizit loggen, wenn wir wieder Jobs
-            # verarbeiten, müssen wir "es ist nichts zu tun" nicht ständig
-            # loggen in längeren Leerlaufphasen.
+
+            # Only one information-log when there are no open jobs for a longer
+            # period.
+            # Since we log when processing a new job, we don't have to
+            # constantly log "nothing to do" for periods without any jobs.
             logger.mutate_to_idle_state()
             logger.mutate_to_idle_state()
             logger.mutate_to_idle_state()
             logger.mutate_to_idle_state()
             logger.mutate_to_idle_state()
-            # verarbeitet nochmal 4 Jobs
+            # processes 4 jobs again
             for _ in range(4):
                 logger.mutate_to_processing_state()
-            # keine Jobs mehr offen
+            # no open jobs
             logger.mutate_to_idle_state()
             logger.mutate_to_idle_state()
-            # darf keine Jobs mehr verarbeiten
+            # not allowed to process more jobs
             logger.mutate_to_unprocessable_state()
             logger.mutate_to_unprocessable_state()
             logger.mutate_to_unprocessable_state()
             logger.mutate_to_unprocessable_state()
-            # verarbeitet einen Job
+            # processes one job
             logger.mutate_to_processing_state()
-            # darf keine Jobs mehr verarbeiten
+            # not allowed to process more jobs
             logger.mutate_to_unprocessable_state()
             logger.mutate_to_unprocessable_state()
             logger.mutate_to_unprocessable_state()
             logger.mutate_to_unprocessable_state()
-            # keine Jobs mehr offen
+            # no open jobs
             logger.mutate_to_idle_state()
             logger.mutate_to_idle_state()
         self.assertEqual(
@@ -338,10 +351,10 @@ class QueueTestCase(TestCase):
 
 
 class ExplodingEvent:
-    """Mock-Objekt für `threading.Event`.
+    """mock object for `threading.Event`.
 
-    Speichert alle Aufrufe von `wait` und wirft `MaxCallsReached`, sobald eine
-    festgelegte Zahl an Aufrufen erfolgt ist.
+    Saves all calls to `wait` and throws `MaxCallsReached` when a defined number
+    of calls is reached.
     """
 
     def __init__(self, max_waits):
