@@ -15,3 +15,6 @@ tags
 
 # direnv
 /.direnv
+
+# Jetbrains-IDE's
+.idea
