@@ -26,6 +26,17 @@ class Command(BaseCommand):
                 """
             ),
         )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            default=False,
+            help=(
+                """
+                print which jobs would be deleted instead of actually
+                deleting them
+                """
+            ),
+        )
         queue_switch = parser.add_mutually_exclusive_group()
         queue_switch.add_argument(
             "--all-queues",
@@ -44,27 +55,31 @@ class Command(BaseCommand):
         )
 
     def handle(self, max_age_in_days: int, **options):
+        self.dry_run = options["dry_run"]
+        self._handle(**options)
+
+    def _handle(self, **options):
         relevant_job_models: list[type[AbstractJob]] = (
             enumerate_job_models()
             if options["all_queues"]
             else [_load_model_from_fully_qualified_name(options["queue"])]
         )
         for Job in relevant_job_models:
-            _delete_old_finished_jobs(Job, max_age_in_days)
+            _delete_old_finished_jobs(Job, max_age_in_days, self.dry_run)
 
 
-def _delete_old_finished_jobs(Job: type[AbstractJob], max_age_in_days: int):
+def _delete_old_finished_jobs(Job: type[AbstractJob], max_age_in_days: int, dry_run: bool = False):
     border = datetime.now(tz=timezone.utc) - timedelta(days=max_age_in_days)
     old_jobs = Job.objects.filter(modification_date__lte=border)
     if maybe_unfinished_job := old_jobs.exclude(
         status__in=("PROCESSED", "DEFERRED", "IGNORED")
     ).first():
-        _delete_in_chunks(Job, old_jobs.filter(id__lt=maybe_unfinished_job.pk))
+        _delete_in_chunks(Job, old_jobs.filter(id__lt=maybe_unfinished_job.pk), dry_run)
     else:
-        _delete_in_chunks(Job, old_jobs)
+        _delete_in_chunks(Job, old_jobs, dry_run)
 
 
-def _delete_in_chunks(Job: type[AbstractJob], jobs):
+def _delete_in_chunks(Job: type[AbstractJob], jobs, dry_run: bool = False):
     pks = jobs.values_list("pk", flat=True)
     pks_count = pks.count()
 
@@ -75,7 +90,14 @@ def _delete_in_chunks(Job: type[AbstractJob], jobs):
 
     for i, chunk in enumerate(iter_chunks(CHUNK_SIZE, pks), start=1):
         logger.info(f"{Job.__name__}: processing chunk {i}/{chunk_count}")
-        Job.objects.filter(pk__in=chunk).delete()
+        if dry_run:
+            LIMIT = 10
+            logger.info(
+                f"{Job.__name__}: dry-run - would delete jobs with PKs "
+                f"(limited to {LIMIT} {list(chunk)[:LIMIT]}`"
+            )
+        else:
+            Job.objects.filter(pk__in=chunk).delete()
 
 
 def _load_model_from_fully_qualified_name(name: str) -> type[AbstractJob]:
