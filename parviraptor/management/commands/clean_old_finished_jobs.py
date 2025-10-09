@@ -15,18 +15,6 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser):
         parser.add_argument(
-            "max_age_in_days",
-            type=int,
-            help=(
-                """
-                Jobs which are as old or older than the given age in
-                days are removed. If there is a not successfully finished
-                job within the resulting timeframe, only the jobs until the
-                first failed job are removed if there are some.
-                """
-            ),
-        )
-        parser.add_argument(
             "--dry-run",
             action="store_true",
             default=False,
@@ -54,7 +42,7 @@ class Command(BaseCommand):
             help="<app_label>.<ModelName>, e.g. my_app.SomeRandomJob",
         )
 
-    def handle(self, max_age_in_days: int, **options):
+    def handle(self, **options):
         self.dry_run = options["dry_run"]
         self._handle(**options)
 
@@ -65,18 +53,18 @@ class Command(BaseCommand):
             else [_load_model_from_fully_qualified_name(options["queue"])]
         )
         for Job in relevant_job_models:
-            _delete_old_finished_jobs(Job, max_age_in_days, self.dry_run)
+            if Job.MAX_AGE_FOR_PROCESSED_JOBS_IN_DAYS is not None:
+                _delete_old_finished_jobs(Job, self.dry_run)
 
 
-def _delete_old_finished_jobs(Job: type[AbstractJob], max_age_in_days: int, dry_run: bool = False):
-    border = datetime.now(tz=timezone.utc) - timedelta(days=max_age_in_days)
-    old_jobs = Job.objects.filter(modification_date__lte=border)
-    if maybe_unfinished_job := old_jobs.exclude(
-        status__in=("PROCESSED", "DEFERRED", "IGNORED")
-    ).first():
-        _delete_in_chunks(Job, old_jobs.filter(id__lt=maybe_unfinished_job.pk), dry_run)
-    else:
-        _delete_in_chunks(Job, old_jobs, dry_run)
+def _delete_old_finished_jobs(Job: type[AbstractJob], dry_run: bool = False):
+    border = datetime.now(tz=timezone.utc) - timedelta(
+        days=Job.MAX_AGE_FOR_PROCESSED_JOBS_IN_DAYS
+    )
+    old_jobs = Job.objects.filter(
+        modification_date__lte=border, status="PROCESSED"
+    )
+    _delete_in_chunks(Job, old_jobs, dry_run)
 
 
 def _delete_in_chunks(Job: type[AbstractJob], jobs, dry_run: bool = False):
