@@ -1,9 +1,8 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from django.apps import apps
-from django.core.management.base import BaseCommand
-from django.utils import timezone
+from django.core.management.base import BaseCommand, CommandParser
 
 from parviraptor.models.abstract import AbstractJob
 from parviraptor.utils import enumerate_job_models, iter_chunks
@@ -14,7 +13,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = "Cleans up obsolete finished jobs"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser):
         parser.add_argument(
             "max_age_in_days",
             type=int,
@@ -45,7 +44,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, max_age_in_days: int, **options):
-        relevant_job_models = (
+        relevant_job_models: list[type[AbstractJob]] = (
             enumerate_job_models()
             if options["all_queues"]
             else [_load_model_from_fully_qualified_name(options["queue"])]
