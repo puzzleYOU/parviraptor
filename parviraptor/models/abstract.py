@@ -67,6 +67,14 @@ class AbstractJob(models.Model):
     BACKOFF_STEP_MINUTES = 2
     BACKOFF_STRATEGY = BackoffStrategy.EXPONENTIAL
 
+    MAX_AGE_FOR_PROCESSED_JOBS_IN_DAYS: int | None = 7
+    """
+    time in days to hold Jobs with status "PROCESSED" before they will be
+    deleted.
+    If the value is None, the deletion for this specific job is deactivated.
+    This variable can be overridden by its subclasses.
+    """
+
     @classmethod
     def get_dependent_fields(cls):
         if not hasattr(cls, "dependent_fields"):
