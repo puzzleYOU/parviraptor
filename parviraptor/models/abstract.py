@@ -279,6 +279,9 @@ class AbstractJob(models.Model):
 
     class Meta:
         abstract = True
+        indexes = [
+            models.Index(fields=["modification_date", "status"]),
+        ]
 
 
 class AbstractJobFactory:
