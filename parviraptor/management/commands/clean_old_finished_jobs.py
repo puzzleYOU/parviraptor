@@ -76,7 +76,7 @@ def _delete_in_chunks(Job: type[AbstractJob], jobs, dry_run: bool = False):
     remainder = 0 if pks_count % CHUNK_SIZE == 0 else 1
     chunk_count = full_chunks + remainder
 
-    logger.info(f"{Job.__name__}: Process {pks_count} jobs...")
+    logger.info(f"{Job.__name__}: Processing {pks_count} jobs...")
     for i, chunk in enumerate(iter_chunks(CHUNK_SIZE, pks), start=1):
         logger.info(f"{Job.__name__}: processing chunk {i}/{chunk_count}")
         if dry_run:
