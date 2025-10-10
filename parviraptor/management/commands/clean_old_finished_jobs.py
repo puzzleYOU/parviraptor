@@ -1,9 +1,8 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from django.apps import apps
-from django.core.management.base import BaseCommand
-from django.utils import timezone
+from django.core.management.base import BaseCommand, CommandParser
 
 from parviraptor.models.abstract import AbstractJob
 from parviraptor.utils import enumerate_job_models, iter_chunks
@@ -14,16 +13,15 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = "Cleans up obsolete finished jobs"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser):
         parser.add_argument(
-            "max_age_in_days",
-            type=int,
+            "--dry-run",
+            action="store_true",
+            default=False,
             help=(
                 """
-                Jobs which are as old or older than the given age in
-                days are removed. If there is a not successfully finished
-                job within the resulting timeframe, only the jobs until the
-                first failed job are removed if there are some.
+                print which jobs would be deleted instead of actually
+                deleting them
                 """
             ),
         )
@@ -44,28 +42,32 @@ class Command(BaseCommand):
             help="<app_label>.<ModelName>, e.g. my_app.SomeRandomJob",
         )
 
-    def handle(self, max_age_in_days: int, **options):
-        relevant_job_models = (
+    def handle(self, **options):
+        self.dry_run = options["dry_run"]
+        self._handle(**options)
+
+    def _handle(self, **options):
+        relevant_job_models: list[type[AbstractJob]] = (
             enumerate_job_models()
             if options["all_queues"]
             else [_load_model_from_fully_qualified_name(options["queue"])]
         )
         for Job in relevant_job_models:
-            _delete_old_finished_jobs(Job, max_age_in_days)
+            if Job.MAX_AGE_FOR_PROCESSED_JOBS_IN_DAYS is not None:
+                _delete_old_finished_jobs(Job, self.dry_run)
 
 
-def _delete_old_finished_jobs(Job: type[AbstractJob], max_age_in_days: int):
-    border = datetime.now(tz=timezone.utc) - timedelta(days=max_age_in_days)
-    old_jobs = Job.objects.filter(modification_date__lte=border)
-    if maybe_unfinished_job := old_jobs.exclude(
-        status__in=("PROCESSED", "DEFERRED", "IGNORED")
-    ).first():
-        _delete_in_chunks(Job, old_jobs.filter(id__lt=maybe_unfinished_job.pk))
-    else:
-        _delete_in_chunks(Job, old_jobs)
+def _delete_old_finished_jobs(Job: type[AbstractJob], dry_run: bool = False):
+    border = datetime.now(tz=timezone.utc) - timedelta(
+        days=Job.MAX_AGE_FOR_PROCESSED_JOBS_IN_DAYS
+    )
+    old_jobs = Job.objects.filter(
+        modification_date__lte=border, status="PROCESSED"
+    )
+    _delete_in_chunks(Job, old_jobs, dry_run)
 
 
-def _delete_in_chunks(Job: type[AbstractJob], jobs):
+def _delete_in_chunks(Job: type[AbstractJob], jobs, dry_run: bool = False):
     pks = jobs.values_list("pk", flat=True)
     pks_count = pks.count()
 
@@ -76,7 +78,14 @@ def _delete_in_chunks(Job: type[AbstractJob], jobs):
 
     for i, chunk in enumerate(iter_chunks(CHUNK_SIZE, pks), start=1):
         logger.info(f"{Job.__name__}: processing chunk {i}/{chunk_count}")
-        Job.objects.filter(pk__in=chunk).delete()
+        if dry_run:
+            LIMIT = 10
+            logger.info(
+                f"{Job.__name__}: dry-run - would delete jobs with PKs "
+                f"(limited to {LIMIT} {list(chunk)[:LIMIT]}`"
+            )
+        else:
+            Job.objects.filter(pk__in=chunk).delete()
 
 
 def _load_model_from_fully_qualified_name(name: str) -> type[AbstractJob]:
