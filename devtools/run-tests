@@ -1,4 +1,10 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
+ if [[ $(date "+%m") == "12" ]]; then
+   cat $(dirname $0)/parviraptor-12.txt
+ else
+   cat $(dirname $0)/parviraptor.txt
+ fi
 
 # Wir können hier nicht `set -o errexit` verwenden, weil wir sonst bei
 # fehlschlagenden Testläufen sofort nach `docker-compose run` abbrechen
