@@ -1,3 +1,4 @@
+import unittest
 from datetime import datetime
 
 from django.test import TestCase
@@ -67,3 +68,14 @@ class AbstractJobTests(TestCase):
             ],
             DummyProductJob.get_queryset_filters_for_disjoint_queues(),
         )
+
+
+class ConcurrencyTests(unittest.TestCase):
+    def test_can_resume_job(self):
+        job = DummyJob.objects.create(a=1, b=1, status="PROCESSING")
+        try:
+            self.assertEqual(0, DummyJob.objects.filter(status="NEW").count())
+            job.update_job_for_being_resumed()
+            self.assertEqual(1, DummyJob.objects.filter(status="NEW").count())
+        finally:
+            job.delete()
