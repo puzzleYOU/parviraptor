@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from functools import reduce
 from typing import Any
 
-from django.db import models
+from django.db import connections, models
 from django.db.models import Q
 
 from parviraptor.exceptions import TemporaryJobFailure
@@ -125,6 +125,24 @@ class AbstractJob(models.Model):
 
     def on_job_terminated(self):
         pass
+
+    def update_job_for_being_resumed(self, db_alias: str = "default"):
+        """
+        Sets a job to 'NEW' so it can be resumed later. This method is meant
+        to be called in `on_job_terminated()` for handling long running jobs
+        while rolling restarts in distributed systems (e.g. Kubernetes).
+
+        In case the worker process gets interrupted, the job is set to the 'NEW'
+        state, being resumed when a new worker process spawns.
+        """
+        connection = connections.create_connection(db_alias)
+        with connection.cursor() as cursor:
+            query = f"""
+            UPDATE {self._meta.db_table}
+            SET status = "NEW" WHERE id = %s
+            """
+            cursor.execute(query, [self.pk])
+        connection.close()
 
     def is_processable(self) -> bool:
         """Returns whether the job queue is processable.
