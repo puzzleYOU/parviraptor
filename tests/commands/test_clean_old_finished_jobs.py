@@ -1,10 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TransactionTestCase
-from django.utils import timezone
 
 from parviraptor.models.abstract import AbstractJob
 from tests.models import DummyJob, DummyProductJob, IncrementCounterJob

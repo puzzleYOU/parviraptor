@@ -1,8 +1,7 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 
 from django.test import TestCase
-from django.utils import timezone
 
 from .models import DummyJob, DummyProductJob
 
