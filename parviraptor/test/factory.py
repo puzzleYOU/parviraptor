@@ -4,9 +4,7 @@ from ..utils import enumerate_job_models
 from .case import QueueTestCase
 
 
-def make_test_case_for_all_queues[
-    TJob: AbstractJob
-](
+def make_test_case_for_all_queues[TJob: AbstractJob](
     job_classes_to_ignore: list[type[TJob]] | None = None,
     **static_fields,
 ) -> type[QueueTestCase]:
