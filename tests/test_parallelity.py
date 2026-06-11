@@ -4,7 +4,7 @@ from .models import Counter, DummyJob, DummyProductJob, IncrementCounterJob
 
 
 class ParallelityTests(QueueTestCase):
-    """Schließt Nebenläufigkeitsprobleme bei parallelen Job-Queues aus."""
+    """Checks for concurrency issues when processing jobs in parallel."""
 
     def test_status_transition_from_new_to_processing_is_atomic(self):
         COUNTER_VALUE = 500
@@ -12,11 +12,9 @@ class ParallelityTests(QueueTestCase):
             IncrementCounterJob(counter_id="foo") for _ in range(COUNTER_VALUE)
         ]
 
-        # Ohne weitere Sperrmechanismen auf der Datenbank wird es dazu
-        # kommen, dass voneinander unabhängige Jobs doppelt abgearbeitet
-        # werden können. Wir arbeiten die Queue parallel ab und stellen sicher,
-        # dass der Counter auf exakt n erhöht wurde.
-        # Wäre er höher, so bedeutet das, dass Jobs doppelt abgearbeitet wurden.
+        # IncrementCounterJobs do not have ANY interdependency, so only
+        # synchronization prevents every single job from being processed
+        # multiple times.
         Counter.objects.create(counter_id="foo", value=0)
         self.process_queue(IncrementCounterJob, jobs, 8)
         self.assertEqual(
