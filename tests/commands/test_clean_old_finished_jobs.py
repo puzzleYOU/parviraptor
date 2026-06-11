@@ -84,14 +84,16 @@ class CleanOldFinishedJobsTests(TransactionTestCase):
     def test_chunked_deletion_removes_all_jobs(self):
         old_date = datetime.now(tz=timezone.utc) - timedelta(days=23)
 
-        num_jobs = 2500
-        for i in range(num_jobs):
-            DummyJob.objects.create(a=1, b=2, status="PROCESSED")
-        DummyJob.objects.create(a=1, b=2, status="PENDING")
-        DummyJob.objects.create(a=1, b=2, status="FAILED")
+        DummyJob.objects.bulk_create(
+            [DummyJob(a=1, b=2, status="PROCESSED")] * 2500
+            + [
+                DummyJob(a=1, b=2, status="PENDING"),
+                DummyJob(a=1, b=2, status="FAILED"),
+            ]
+        )
         DummyJob.objects.all().update(modification_date=old_date)
 
-        self.assertEqual(num_jobs + 2, DummyJob.objects.count())
+        self.assertEqual(2502, DummyJob.objects.count())
 
         self._call_command("--queue=tests.DummyJob")
 
