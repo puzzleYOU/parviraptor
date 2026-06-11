@@ -39,7 +39,7 @@ isort *ARGS='':
 black *ARGS='':
     black \
       --line-length 80 \
-      --target-version py312 \
+      -t py312 -t py313 \
       parviraptor \
       tests \
       {{ARGS}}
