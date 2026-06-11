@@ -15,7 +15,7 @@ setup(
     license="MIT",
     packages=find_packages("."),
     install_requires=[
-        "Django",
+        "Django>=4",
     ],
     zip_safe=True,
 )
