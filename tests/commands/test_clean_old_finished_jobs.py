@@ -85,7 +85,7 @@ class CleanOldFinishedJobsTests(TransactionTestCase):
         old_date = datetime.now(tz=timezone.utc) - timedelta(days=23)
 
         DummyJob.objects.bulk_create(
-            [DummyJob(a=1, b=2, status="PROCESSED")] * 2500
+            [DummyJob(a=1, b=2, status="PROCESSED") for _ in range(2500)]
             + [
                 DummyJob(a=1, b=2, status="PENDING"),
                 DummyJob(a=1, b=2, status="FAILED"),

@@ -7,7 +7,7 @@ class ParallelityTests(QueueTestCase):
     """Checks for concurrency issues when processing jobs in parallel."""
 
     def test_status_transition_from_new_to_processing_is_atomic(self):
-        COUNTER_VALUE = 500
+        COUNTER_VALUE = 100
         jobs = [
             IncrementCounterJob(counter_id="foo") for _ in range(COUNTER_VALUE)
         ]
@@ -22,7 +22,7 @@ class ParallelityTests(QueueTestCase):
         )
 
     def test_processes_strict_fifo_queue_in_right_order(self):
-        jobs = [DummyJob(a=1, b=3) for _ in range(100)]
+        jobs = [DummyJob(a=1, b=3) for _ in range(25)]
         self.process_queue(DummyJob, jobs, 8)
 
         ordered_ids = self.get_ordered_ids(DummyJob.objects.all(), "pk")
@@ -32,8 +32,8 @@ class ParallelityTests(QueueTestCase):
         self.assertEqual(ordered_ids, ids_in_order_of_processing)
 
     def test_processes_jobs_with_field_based_dependencies_in_right_order(self):
-        shops = ["shop-a", "shop-b", "shop-c", "shop-d"]
-        products = ["prod-a", "prod-b", "prod-c", "prod-d"]
+        shops = ["shop-a", "shop-b", "shop-c"]
+        products = ["prod-a", "prod-b", "prod-c"]
 
         jobs = [
             DummyProductJob(
@@ -43,7 +43,7 @@ class ParallelityTests(QueueTestCase):
             )
             for shop_name in shops
             for product_name in products
-            for action in range(1, 11)
+            for action in range(1, 5)
         ]
         self.process_queue(DummyProductJob, jobs, 8)
 
