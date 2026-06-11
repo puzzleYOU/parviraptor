@@ -23,7 +23,7 @@ tox-env *ARGS='':
 
 # Runs a single unittest
 tox-unittest *ARGS='':
-    just tox-env unittests-dj42-mysql8 -- {{ARGS}}
+    just tox-env unittests-dj60-mysql97-py314 -- {{ARGS}}
 
 # Checks all coding conventions
 lint:

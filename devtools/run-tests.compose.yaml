@@ -7,21 +7,34 @@ services:
       DB_USER: parviraptor
       DB_PASSWORD: dev
     depends_on:
-      - mysql5
-      - mysql8
+      - mysql80
+      - mysql84
+      - mysql97
 
-  mysql5:
-    image: mysql:5.7.40
+  mysql80:
+    image: mysql:8.0
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_DATABASE: test_parviraptor
       MYSQL_USER: parviraptor
       MYSQL_PASSWORD: dev
     command:
-      - "--sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION"
+      - "--log_bin_trust_function_creators=1"
+      - "--sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
 
-  mysql8:
-    image: mysql:8.0.31
+  mysql84:
+    image: mysql:8.4
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: test_parviraptor
+      MYSQL_USER: parviraptor
+      MYSQL_PASSWORD: dev
+    command:
+      - "--log_bin_trust_function_creators=1"
+      - "--sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
+
+  mysql97:
+    image: mysql:9.7
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_DATABASE: test_parviraptor
