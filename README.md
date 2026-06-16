@@ -1,5 +1,11 @@
 # parviraptor
 
+![Python](https://img.shields.io/pypi/pyversions/parviraptor)
+![Django](https://img.shields.io/pypi/frameworkversions/django/parviraptor)
+![MySQL 8.0](https://img.shields.io/badge/mysql-8.0-brightgreen)
+![MySQL 8.4](https://img.shields.io/badge/mysql-8.4-brightgreen)
+![MySQL 9.7](https://img.shields.io/badge/mysql-9.7-brightgreen)
+
 `parviraptor` is a Django app for managing queue-based jobs, both
 sequentially and in parallel.
 
@@ -14,12 +20,6 @@ This package provides
 
 - rudimentary Django views for monitoring and job queue statistics
 
-
-## Compatibility
-
-`parviraptor` should be compatible with any Django codebase. The test suite
-covers Django 3.2, 4.0, 4.1 and 4.2 with each MySQL 5 and 8, the latter
-depending on which MySQL versions Django supports.
 
 ## Running tests
 
