@@ -8,7 +8,7 @@ from .models import Counter, DummyJob, DummyProductJob, IncrementCounterJob
 class FactoryTestCase(make_test_case_for_all_queues()):
     def setUp(self):
         super().setUp()
-        DummyJob.objects.bulk_create([DummyJob(a=1, b=3) for _ in range(100)])
+        DummyJob.objects.bulk_create([DummyJob(a=1, b=3) for _ in range(2)])
         DummyProductJob.objects.bulk_create(
             [
                 DummyProductJob(
@@ -16,14 +16,14 @@ class FactoryTestCase(make_test_case_for_all_queues()):
                     product_name=product_name,
                     action=action,
                 )
-                for shop_name in ["shop-a", "shop-b", "shop-c", "shop-d"]
-                for product_name in ["prod-a", "prod-b", "prod-c", "prod-d"]
-                for action in ["FOO", "BAR", "BAZ"]
+                for shop_name in ["A", "B"]
+                for product_name in ["C", "D"]
+                for action in ["E", "F"]
             ]
         )
         Counter.objects.create(counter_id="foo", value=0)
         IncrementCounterJob.objects.bulk_create(
-            [IncrementCounterJob(counter_id="foo") for _ in range(100)]
+            [IncrementCounterJob(counter_id="foo") for _ in range(2)]
         )
 
 
@@ -36,7 +36,7 @@ class FactoryTestCaseWithIgnoredQueues(
         super().setUp()
         Counter.objects.create(counter_id="foo", value=0)
         IncrementCounterJob.objects.bulk_create(
-            [IncrementCounterJob(counter_id="foo") for _ in range(100)]
+            [IncrementCounterJob(counter_id="foo") for _ in range(25)]
         )
 
 

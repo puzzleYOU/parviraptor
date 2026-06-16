@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -13,7 +13,7 @@
       in with pkgs; {
         devShell = mkShell {
           buildInputs = [
-            (pkgs.python312.withPackages (ps: [
+            (pkgs.python314.withPackages (ps: [
                 ps.pip
                 ps.black
                 ps.flake8
