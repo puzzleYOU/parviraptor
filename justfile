@@ -4,9 +4,7 @@ help:
 # Set up a python-venv for e.g. comfortable editor autocompletion support.
 setup-virtual-environment:
     python -m venv ./.venv
-    source .venv/bin/activate
-    .venv/bin/pip install setuptools
-    .venv/bin/python setup.py install
+    .venv/bin/pip install .
 
 # Executes all tests
 test:
