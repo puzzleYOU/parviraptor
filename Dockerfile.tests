@@ -16,4 +16,4 @@ COPY parviraptor/ /home/parviraptor/
 COPY tests/ /home/tests/
 COPY *.* /home/
 
-RUN python setup.py install
+RUN pip install .

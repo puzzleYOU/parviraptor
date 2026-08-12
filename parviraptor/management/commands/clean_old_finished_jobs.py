@@ -58,6 +58,11 @@ class Command(BaseCommand):
 
 
 def _delete_old_finished_jobs(Job: type[AbstractJob], dry_run: bool = False):
+    if Job.MAX_AGE_FOR_PROCESSED_JOBS_IN_DAYS is None:
+        raise TypeError(
+            f"{Job.__name__}.MAX_AGE_FOR_PROCESSED_JOBS_IN_DAYS mustn't be None"
+        )
+
     border = datetime.now(tz=timezone.utc) - timedelta(
         days=Job.MAX_AGE_FOR_PROCESSED_JOBS_IN_DAYS
     )

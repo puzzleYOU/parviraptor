@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 from itertools import chain, islice
-from typing import List
+from typing import TYPE_CHECKING
 
 from django.apps import apps
 
+if TYPE_CHECKING:
+    from parviraptor.models.abstract import AbstractJob
 
-def enumerate_job_models() -> List[type]:
+
+def enumerate_job_models() -> list[type[AbstractJob]]:
     """
     Enumerates all non-abstract parviraptor job models within current
     Django environment.
@@ -22,15 +27,11 @@ def enumerate_job_models() -> List[type]:
             return False
         return not getattr(model_class.Meta, "abstract", False)
 
-    non_abstract_models = list(filter(is_abstract, relevant_models))
-    job_models = list(
-        filter(
-            lambda model_class: issubclass(model_class, AbstractJob),
-            non_abstract_models,
-        )
-    )
-
-    return job_models
+    return [
+        model_class
+        for model_class in filter(is_abstract, relevant_models)
+        if issubclass(model_class, AbstractJob)
+    ]
 
 
 def iter_chunks(size, iterable):

@@ -15,12 +15,12 @@
           buildInputs = [
             (pkgs.python314.withPackages (ps: [
                 ps.pip
-                ps.black
-                ps.flake8
-                ps.isort
                 ps.setuptools
+                ps.mypy
+                ps.django-stubs
             ]))
             just
+            pkgs.ruff
           ];
         };
       }
