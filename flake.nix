@@ -16,6 +16,8 @@
             (pkgs.python314.withPackages (ps: [
                 ps.pip
                 ps.setuptools
+                ps.mypy
+                ps.django-stubs
             ]))
             just
             pkgs.ruff

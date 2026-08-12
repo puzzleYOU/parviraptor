@@ -29,6 +29,7 @@ tox-unittest *ARGS='':
 lint:
     ruff check parviraptor/ tests/
     ruff format --check parviraptor/ tests/
+    mypy parviraptor/
 
 # Runs ruff import sorting
 isort *ARGS='':

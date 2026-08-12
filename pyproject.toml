@@ -8,3 +8,11 @@ ignore = ["E203"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[tool.django-stubs]
+django_settings_module = "mypy_settings"
