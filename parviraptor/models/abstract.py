@@ -205,8 +205,9 @@ class AbstractJob(models.Model):
     @classmethod
     def _get_dependent_fields_lookup(cls, job):
         return reduce(
-            lambda combined, field: combined
-            & Q(**{field: getattr(job, field)}),
+            lambda combined, field: (
+                combined & Q(**{field: getattr(job, field)})
+            ),
             cls.get_dependent_fields(),
             Q(),
         )
