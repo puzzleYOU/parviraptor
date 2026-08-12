@@ -27,22 +27,16 @@ tox-unittest *ARGS='':
 
 # Checks all coding conventions
 lint:
-    python -m flake8 parviraptor/ tests/
-    just isort --check-only --diff
-    just black --check
+    ruff check parviraptor/ tests/
+    ruff format --check parviraptor/ tests/
 
-# Runs isort against each source directory
+# Runs ruff import sorting
 isort *ARGS='':
-    python -m isort parviraptor/ tests/ {{ARGS}}
+    ruff check --select I --fix parviraptor/ tests/ {{ARGS}}
 
-# Runs black against each source directory
-black *ARGS='':
-    black \
-      --line-length 80 \
-      -t py312 -t py313 \
-      parviraptor \
-      tests \
-      {{ARGS}}
+# Formats code with ruff
+format *ARGS='':
+    ruff format parviraptor/ tests/ {{ARGS}}
 
 ctags:
     ctags -R parviraptor/ tests/
