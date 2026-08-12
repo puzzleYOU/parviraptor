@@ -15,10 +15,10 @@ class InfinityLoopFreeQueueWorker(QueueWorker):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._should_stop = False
+        self._caught_exit_signal = Mock(is_set=self._is_should_stop_set)
 
-    @property
-    def _caught_exit_signal(self):
-        return Mock(is_set=lambda: self._should_stop)
+    def _is_should_stop_set(self):
+        return self._should_stop
 
     def run(self, *args, **kwargs):
         super().run(*args, **kwargs)

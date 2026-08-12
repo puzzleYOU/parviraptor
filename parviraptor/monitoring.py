@@ -13,7 +13,7 @@ class QueueMonitoringResult:
 
 
 def monitor_queue_entries(
-    job_classes: Iterable[type],
+    job_classes: Iterable[type[AbstractJob]],
 ) -> List[QueueMonitoringResult]:
     """
     Returns `QueueMonitoringResult` per passed job class.
