@@ -2,7 +2,7 @@ import enum
 import itertools
 from datetime import datetime, timedelta, timezone
 from functools import reduce
-from typing import Any
+from typing import Any, ClassVar
 
 from django.db import connections, models
 from django.db.models import Q
@@ -66,6 +66,8 @@ class AbstractJob(models.Model):
 
     BACKOFF_STEP_MINUTES = 2
     BACKOFF_STRATEGY = BackoffStrategy.EXPONENTIAL
+
+    objects: ClassVar[models.Manager]
 
     MAX_AGE_FOR_PROCESSED_JOBS_IN_DAYS: int | None = 7
     """
@@ -205,8 +207,9 @@ class AbstractJob(models.Model):
     @classmethod
     def _get_dependent_fields_lookup(cls, job):
         return reduce(
-            lambda combined, field: combined
-            & Q(**{field: getattr(job, field)}),
+            lambda combined, field: (
+                combined & Q(**{field: getattr(job, field)})
+            ),
             cls.get_dependent_fields(),
             Q(),
         )

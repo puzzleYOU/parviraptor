@@ -11,7 +11,7 @@ from .worker import InfinityLoopFreeQueueWorker
 class QueueTestCase(TransactionTestCase):
     def process_queue(
         self,
-        JobClass: type,
+        JobClass: type[AbstractJob],
         jobs: Iterable[AbstractJob],
         number_of_threads: int,
         create_jobs: bool = True,
